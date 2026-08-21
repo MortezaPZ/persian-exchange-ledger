@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{% if instance %}ویرایش {{ instance.name }}{% else %}طرف حساب جدید{% endif %} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% if instance %}ویرایش طرف حساب{% else %}تعریف طرف حساب جدید{% endif %}</h1>
+    <p>مشتری هیچ‌وقت پاک نمی‌شود؛ اگر دیگر با او کار نمی‌کنید فقط تیک «فعال» را بردارید تا سوابقش بماند.</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:860px">
+  <div class="card-body">
+    {% if form.non_field_errors %}
+      <div class="notice danger" style="margin-bottom:14px">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </div>
+    {% endif %}
+    <form method="post" data-once>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% include "_field.html" with field=form.kind %}
+        {% include "_field.html" with field=form.name %}
+        {% include "_field.html" with field=form.currency %}
+        {% include "_field.html" with field=form.code %}
+        {% include "_field.html" with field=form.phone %}
+        {% include "_field.html" with field=form.national_id %}
+        {% include "_field.html" with field=form.telegram_id %}
+        {% include "_field.html" with field=form.whatsapp_no %}
+        {% include "_field.html" with field=form.note wide=1 %}
+      </div>
+      <div class="checkbox-list" style="margin-top:14px">
+        <label>{{ form.is_active }} {{ form.is_active.label }}</label>
+        <span class="help">{{ form.is_active.help_text }}</span>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">ذخیره</button>
+        <a href="{% url 'core:party_list' %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

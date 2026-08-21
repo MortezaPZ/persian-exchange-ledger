@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{% if instance %}ویرایش کاربر{% else %}کاربر جدید{% endif %} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% if instance %}ویرایش کاربر {{ instance.username }}{% else %}تعریف کاربر جدید{% endif %}</h1>
+    <p>نقش تعیین می‌کند این کاربر به کدام بخش‌ها دسترسی دارد.</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-body">
+    {% if form.non_field_errors %}
+      <div class="notice danger" style="margin-bottom:14px">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
+    {% endif %}
+    <form method="post" data-once autocomplete="off">
+      {% csrf_token %}
+      <div class="form-grid">
+        {% include "_field.html" with field=form.username %}
+        {% include "_field.html" with field=form.full_name %}
+        {% include "_field.html" with field=form.phone %}
+        {% include "_field.html" with field=form.role %}
+        {% include "_field.html" with field=form.password1 %}
+        {% include "_field.html" with field=form.password2 %}
+      </div>
+      <div class="checkbox-list" style="margin-top:14px">
+        <label>{{ form.is_active }} {{ form.is_active.label }}</label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">ذخیره</button>
+        <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

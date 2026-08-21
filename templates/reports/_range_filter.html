@@ -1,0 +1,24 @@
+{% load sarrafi %}{# نوار فیلتر بازه تاریخ + دکمه‌های خروجی، مشترک بین گزارش‌ها #}
+<form method="get" class="filter-bar">
+  <div class="field">
+    <label>از تاریخ</label>
+    <input type="text" name="from" value="{{ date_from }}" class="input date-input" dir="ltr" placeholder="۱۴۰۵/۰۵/۰۱">
+  </div>
+  <div class="field">
+    <label>تا تاریخ</label>
+    <input type="text" name="to" value="{{ date_to }}" class="input date-input" dir="ltr" placeholder="۱۴۰۵/۰۵/۳۱">
+  </div>
+  <div class="field"><label>&nbsp;</label><button type="submit" class="btn">اعمال بازه</button></div>
+  <div class="field">
+    <label>&nbsp;</label>
+    <a href="{% querystring_export 'xlsx' %}" class="btn btn-secondary">خروجی اکسل</a>
+  </div>
+  <div class="field">
+    <label>&nbsp;</label>
+    <a href="{% querystring_export 'pdf' %}" class="btn btn-secondary">خروجی PDF</a>
+  </div>
+  <div class="field">
+    <label>&nbsp;</label>
+    <button type="button" onclick="window.print()" class="btn btn-secondary">چاپ</button>
+  </div>
+</form>

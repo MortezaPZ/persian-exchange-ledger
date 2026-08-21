@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}ارزها — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>ارزها</h1>
+    <p>برای اضافه کردن ارز جدید (یورو، لیر، …) فقط یک سطر اینجا اضافه می‌شود؛ هیچ تغییری در برنامه لازم نیست.</p>
+  </div>
+  <div class="page-actions"><a href="{% url 'core:currency_create' %}" class="btn">ارز جدید</a></div>
+</div>
+
+<div class="card">
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>نام</th><th>کد</th><th>اعشار</th><th>پایه</th><th>وضعیت</th><th></th></tr></thead>
+        <tbody>
+          {% for currency in currencies %}
+            <tr>
+              <td><strong>{{ currency.name }}</strong></td>
+              <td dir="ltr" style="text-align:start">{{ currency.code }}</td>
+              <td>{{ currency.decimal_places|fa }}</td>
+              <td>{% if currency.is_base %}<span class="badge badge-buy">ارز پایه</span>{% else %}—{% endif %}</td>
+              <td>{% if currency.is_active %}<span class="badge badge-final">فعال</span>{% else %}<span class="badge badge-neutral">غیرفعال</span>{% endif %}</td>
+              <td><a href="{% url 'core:currency_edit' currency.pk %}" class="btn btn-secondary btn-sm">ویرایش</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

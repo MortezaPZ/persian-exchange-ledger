@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}تنظیمات {{ config.get_platform_display }} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>تنظیمات ربات {{ config.get_platform_display }}</h1>
+    <p>توکن اینجا ذخیره می‌شود تا بتوانید بدون دست زدن به برنامه، ربات را روشن یا خاموش کنید.</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-body">
+    {% if form.non_field_errors %}
+      <div class="notice danger" style="margin-bottom:14px">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post" data-once autocomplete="off">
+      {% csrf_token %}
+      <div class="form-grid single">
+        {% include "_field.html" with field=form.token %}
+        {% if form.phone_number_id %}{% include "_field.html" with field=form.phone_number_id %}{% endif %}
+        {% if form.webhook_secret %}{% include "_field.html" with field=form.webhook_secret %}{% endif %}
+        {% include "_field.html" with field=form.api_base %}
+      </div>
+
+      <div class="checkbox-list" style="margin-top:14px">
+        <label>{{ form.is_enabled }} {{ form.is_enabled.label }}</label>
+        {% for error in form.is_enabled.errors %}<span class="error">{{ error }}</span>{% endfor %}
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn">ذخیره تنظیمات</button>
+        <a href="{% url 'bots:dashboard' %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-head"><h2>مشتری چه چیزی می‌تواند بپرسد</h2></div>
+  <div class="card-body" style="font-size:12.5px">
+    <ul style="margin:0; padding-inline-start:18px">
+      <li>کلمه <strong>«مانده»</strong> — مانده فعلی در همه ارزها به‌علاوه ارزش کل</li>
+      <li>کلمه <strong>«گردش»</strong> — چند تراکنش آخر</li>
+      <li>کلمه <strong>«راهنما»</strong> — فهرست همین دستورها</li>
+    </ul>
+    <p style="margin:12px 0 0">
+      اگر شماره فرستنده در پرونده هیچ مشتری‌ای ثبت نشده باشد، ربات پاسخی نمی‌دهد
+      جز اینکه بگوید شماره ثبت نشده است. این خودش یک لایه امنیتی است.
+    </p>
+  </div>
+</div>
+{% endblock %}

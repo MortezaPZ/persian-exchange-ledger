@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}پاک کردن اسناد — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>پاک کردن کل اسناد و شروع دوباره</h1>
+    <p>برای دوره آزمایش: همه اسناد پاک می‌شود و شماره اسناد از ۱ شروع می‌کند.</p>
+  </div>
+</div>
+
+<div class="notice danger" style="margin-bottom:18px; max-width:820px">
+  <strong>این کار برگشت‌پذیر نیست.</strong>
+  همه اسناد، معاملات و مانده‌ها پاک می‌شوند.
+  فقط قبل از پاک شدن یک نسخه پشتیبان کامل گرفته می‌شود که از صفحه پشتیبان‌گیری
+  می‌توانید برش گردانید.
+</div>
+
+<div class="card" style="max-width:820px">
+  <div class="card-head"><h2>چه چیزی پاک می‌شود</h2></div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>مورد</th><th>تعداد فعلی</th><th>وضعیت</th></tr></thead>
+        <tbody>
+          <tr><td>اسناد</td><td class="num">{{ stats.vouchers|fa }}</td><td><span class="badge badge-void">پاک می‌شود</span></td></tr>
+          <tr><td>سطرهای سند</td><td class="num">{{ stats.entries|fa }}</td><td><span class="badge badge-void">پاک می‌شود</span></td></tr>
+          <tr><td>معاملات</td><td class="num">{{ stats.deals|fa }}</td><td><span class="badge badge-void">پاک می‌شود</span></td></tr>
+          <tr><td>مشتری‌ها</td><td class="num">{{ stats.parties|fa }}</td><td><span class="badge badge-neutral">اختیاری</span></td></tr>
+          <tr><td>نرخ‌های ارز</td><td class="num">{{ stats.rates|fa }}</td><td><span class="badge badge-neutral">اختیاری</span></td></tr>
+          <tr><td>کاربران و نقش‌ها</td><td class="muted">—</td><td><span class="badge badge-final">دست نمی‌خورد</span></td></tr>
+          <tr><td>ارزها و بانک‌ها</td><td class="muted">—</td><td><span class="badge badge-final">دست نمی‌خورد</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="max-width:820px">
+  <div class="card-head"><h2>تأیید نهایی</h2></div>
+  <div class="card-body">
+    <form method="post" data-once>
+      {% csrf_token %}
+
+      <div class="checkbox-list" style="margin-bottom:16px">
+        <label><input type="checkbox" name="also_parties" value="1" class="checkbox"> مشتری‌ها هم پاک شوند</label>
+        <label><input type="checkbox" name="also_rates" value="1" class="checkbox"> تاریخچه نرخ ارز هم پاک شود</label>
+      </div>
+
+      <div class="field">
+        <label class="required">برای تأیید، عبارت «{{ confirm_phrase }}» را اینجا بنویسید</label>
+        <input type="text" name="confirm_phrase" class="input" autocomplete="off"
+               placeholder="{{ confirm_phrase }}" required>
+        <span class="help">این کار عمداً سخت شده تا اشتباهی زده نشود.</span>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-danger">پاک کردن همه اسناد</button>
+        <a href="{% url 'maintenance:backup' %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

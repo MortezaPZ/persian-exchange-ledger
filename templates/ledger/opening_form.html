@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}مانده افتتاحیه — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>ثبت مانده افتتاحیه</h1>
+    <p>برای انتقال از گوگل‌شیت: مانده امروز هر مشتری را اینجا وارد کنید تا سیستم از همین‌جا شروع کند.</p>
+  </div>
+</div>
+
+<div class="notice" style="margin-bottom:16px">
+  <strong>بدهکار یا بستانکار؟</strong>
+  اگر مشتری به شما بدهکار است «بدهکار» را انتخاب کنید؛ اگر شما به او بدهکارید «بستانکار».
+  در گوگل‌شیت فعلی، ستون «بستانکار» یعنی پولی که مشتری نزد شما دارد.
+</div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-body">
+    <form method="post" data-once>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% include "_field.html" with field=form.date %}
+        {% include "_field.html" with field=form.party %}
+        {% include "_field.html" with field=form.currency %}
+        {% include "_field.html" with field=form.amount %}
+      </div>
+
+      <div class="field wide" style="margin-top:14px">
+        <label class="required">{{ form.direction.label }}</label>
+        <div class="radio-row">
+          {% for radio in form.direction %}
+            <label>{{ radio.tag }} {{ radio.choice_label }}</label>
+          {% endfor %}
+        </div>
+        {% for error in form.direction.errors %}<span class="error">{{ error }}</span>{% endfor %}
+      </div>
+
+      <div class="form-grid" style="margin-top:14px">
+        {% include "_field.html" with field=form.description wide=1 %}
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn">ثبت مانده افتتاحیه</button>
+        <a href="{% url 'ledger:dashboard' %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

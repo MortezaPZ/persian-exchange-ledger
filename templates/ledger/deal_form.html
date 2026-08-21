@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}ثبت معامله — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>ثبت معامله خرید / فروش ارز</h1>
+    <p>مبلغ کل را خودِ سیستم ضرب می‌کند؛ لازم نیست دستی حساب کنید.</p>
+  </div>
+</div>
+
+<div class="grid grid-main">
+  <div class="card">
+    <div class="card-head"><h2>اطلاعات معامله</h2></div>
+    <div class="card-body">
+      {% if form.non_field_errors %}
+        <div class="notice danger" style="margin-bottom:14px">
+          {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+        </div>
+      {% endif %}
+
+      <form method="post" data-once>
+        {% csrf_token %}
+
+        <div class="field wide" style="margin-bottom:14px">
+          <label class="required">نوع معامله</label>
+          <div class="radio-row">
+            {% for radio in form.side %}
+              <label>{{ radio.tag }} {{ radio.choice_label }}</label>
+            {% endfor %}
+          </div>
+          {% for error in form.side.errors %}<span class="error">{{ error }}</span>{% endfor %}
+        </div>
+
+        <div class="form-grid">
+          {% include "_field.html" with field=form.date %}
+          {% include "_field.html" with field=form.counterparty %}
+          {% include "_field.html" with field=form.currency %}
+          {% include "_field.html" with field=form.quantity %}
+          {% include "_field.html" with field=form.unit_price %}
+          {% include "_field.html" with field=form.total_amount %}
+          {% include "_field.html" with field=form.delivery_account %}
+          {% include "_field.html" with field=form.settle_account %}
+          {% include "_field.html" with field=form.description wide=1 %}
+        </div>
+
+{% if description_suggestions %}
+  <div class="field wide" style="margin-top:-6px">
+    <label>شرح‌های قبلی — برای استفاده کلیک کنید</label>
+    <div class="chips" id="descSuggestions">
+      {% for text in description_suggestions %}
+        <button type="button" class="chip chip-btn" data-text="{{ text }}">{{ text|truncatechars:55 }}</button>
+      {% endfor %}
+    </div>
+    <span class="help">با کلیک، متن در کادر شرح می‌نشیند و می‌توانید عدد و شماره معامله را عوض کنید.</span>
+  </div>
+{% endif %}
+
+
+        <div class="total-preview" style="margin-top:16px">
+          مبلغ کل: <strong id="totalPreview">—</strong> {{ BASE_UNIT }}
+          <div class="help" style="margin-top:4px">این عدد خودکار از تعداد × نرخ حساب می‌شود.</div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn">ثبت قطعی سند</button>
+          <a href="{% url 'ledger:dashboard' %}" class="btn btn-secondary">انصراف</a>
+          <span class="muted" style="font-size:12px">پس از ثبت، سند قطعی می‌شود و فقط با سند برگشتی قابل اصلاح است.</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div>
+    <div class="card">
+      <div class="card-head"><h2>مانده فعلی طرف حساب</h2></div>
+      <div class="card-body side-panel" id="partyBalance">
+        <p class="muted">طرف حساب را انتخاب کنید تا مانده فعلی‌اش نشان داده شود.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>راهنمای سریع</h2></div>
+      <div class="card-body" style="font-size:12.5px; line-height:2">
+        <p style="margin:0 0 10px"><strong>فروش:</strong> ارز به مشتری می‌دهید و او بابت {{ BASE_UNIT }} به شما بدهکار می‌شود.</p>
+        <p style="margin:0 0 10px"><strong>خرید:</strong> ارز از طرف حساب می‌گیرید و بابت {{ BASE_UNIT }} به او بدهکار می‌شوید.</p>
+        <p style="margin:0"><strong>حساب تسویه:</strong> اگر مبلغ همان لحظه نقد شد، بانک یا صندوق مربوطه را انتخاب کنید؛ وگرنه خالی بگذارید تا روی حساب طرف بماند.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

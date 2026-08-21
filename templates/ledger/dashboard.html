@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}داشبورد — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>داشبورد</h1>
+    <p>وضعیت لحظه‌ای صرافی — {{ TODAY_JALALI|fa }}</p>
+  </div>
+  <div class="page-actions">
+    {% if 'voucher.add' in MY_PERMS %}
+      <a href="{% url 'ledger:deal_create' %}" class="btn">ثبت معامله جدید</a>
+      <a href="{% url 'ledger:cash_create' 'receive' %}" class="btn btn-secondary">ثبت دریافت</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if health %}
+  <div class="notice danger" style="margin-bottom:16px">
+    <strong>هشدار سلامت داده:</strong>
+    جمع کل برخی ارزها روی همه حساب‌ها صفر نیست. این نباید اتفاق بیفتد.
+    {% for row in health %}<span class="chip">{{ row.currency|unit_label }}: {% plain_money row.total row.currency %}</span>{% endfor %}
+  </div>
+{% endif %}
+
+<div class="grid grid-4" style="margin-bottom:18px">
+  <div class="stat">
+    <div class="stat-label">معاملات امروز</div>
+    <div class="stat-value">{{ stats_today.count|fa }}</div>
+    <div class="stat-sub">خرید {{ stats_today.buy|base_amount }} · فروش {{ stats_today.sell|base_amount }} {{ BASE_UNIT }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">معاملات این ماه</div>
+    <div class="stat-value">{{ stats_month.count|fa }}</div>
+    <div class="stat-sub">خرید {{ stats_month.buy|base_amount }} · فروش {{ stats_month.sell|base_amount }} {{ BASE_UNIT }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">فروش امروز</div>
+    <div class="stat-value">{{ stats_today.sell|base_amount }}</div>
+    <div class="stat-sub">به {{ BASE_UNIT }}</div>
+  </div>
+  {% if profit_month is not None %}
+  <div class="stat">
+    <div class="stat-label">سود تحقق‌یافته این ماه</div>
+    <div class="stat-value" style="color:{% if profit_month < 0 %}var(--danger){% else %}var(--success){% endif %}">
+      {{ profit_month|base_amount }}
+    </div>
+    <div class="stat-sub">به {{ BASE_UNIT }} · بر پایه میانگین موزون</div>
+  </div>
+  {% else %}
+  <div class="stat">
+    <div class="stat-label">نرخ‌های فعال</div>
+    <div class="stat-value">{{ rate_rows|length|fa }}</div>
+    <div class="stat-sub">ارز دارای نرخ</div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-head">
+      <h2><span class="live-dot"></span>موجودی حساب‌های صرافی</h2>
+      <span class="hint">هر ۲۰ ثانیه بدون رفرش به‌روز می‌شود</span>
+    </div>
+    <div class="card-body tight">
+      <div class="table-wrap">
+        <table class="data" id="liveHouse">
+          <thead><tr><th>حساب</th><th>ارز</th><th>مانده</th></tr></thead>
+          <tbody>
+            {% for row in house %}
+              <tr>
+                <td>{{ row.party.name }}</td>
+                <td>{{ row.currency|unit_label }}</td>
+                <td class="num">{% plain_money row.amount row.currency %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="empty">هنوز حسابی تعریف یا استفاده نشده است.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>نرخ لحظه‌ای ارز</h2>
+      <a href="{% url 'core:rate_dashboard' %}" class="hint">مدیریت نرخ‌ها ←</a>
+    </div>
+    <div class="card-body tight">
+      <div class="table-wrap">
+        <table class="data" id="liveRates">
+          <thead><tr><th>ارز</th><th>نرخ ({{ BASE_UNIT }})</th><th>ساعت</th></tr></thead>
+          <tbody>
+            {% for row in rate_rows %}
+              <tr>
+                <td>{{ row.currency|unit_label }}</td>
+                <td class="num">{% if row.rate %}{{ row.rate.rate_to_base|base_amount }}{% else %}<span class="muted">ثبت نشده</span>{% endif %}</td>
+                <td class="muted">{% if row.rate %}{{ row.rate.effective_at|jalali_dt }}{% else %}—{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="empty">ارزی تعریف نشده است.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-head">
+      <h2>بیشترین مانده مشتریان</h2>
+      <a href="{% url 'reports:customers' %}" class="hint">همه مشتریان ←</a>
+    </div>
+    <div class="card-body tight">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>مشتری</th><th>مانده‌ها</th><th>ارزش کل ({{ BASE_UNIT }})</th></tr></thead>
+          <tbody>
+            {% for row in top_customers %}
+              <tr>
+                <td><a href="{% url 'ledger:statement_detail' row.party.pk %}">{{ row.party.name }}</a></td>
+                <td>
+                  {% for cell in row.cells %}
+                    <span class="chip">{{ cell.currency|unit_label }}: {% plain_money cell.amount cell.currency %}</span>
+                  {% endfor %}
+                </td>
+                <td class="num">{% plain_money row.total_base None %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="empty">هنوز مشتری‌ای مانده ندارد.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h2>آخرین اسناد ثبت‌شده</h2>
+      {% if 'voucher.view' in MY_PERMS %}<a href="{% url 'ledger:voucher_list' %}" class="hint">دفتر اسناد ←</a>{% endif %}
+    </div>
+    <div class="card-body tight">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>شماره</th><th>تاریخ</th><th>نوع</th><th>شرح</th><th>وضعیت</th></tr></thead>
+          <tbody>
+            {% for voucher in recent %}
+              <tr>
+                <td>
+                  {% if 'voucher.view' in MY_PERMS %}
+                    <a href="{% url 'ledger:voucher_detail' voucher.pk %}">{{ voucher.number|fa }}</a>
+                  {% else %}{{ voucher.number|fa }}{% endif %}
+                </td>
+                <td>{{ voucher.date|jalali }}</td>
+                <td>{{ voucher.get_kind_display }}</td>
+                <td class="wrap">{{ voucher.description|truncatechars:60 }}</td>
+                <td><span class="badge {{ voucher.status_css }}">{{ voucher.get_status_display }}</span></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="empty">
+                <strong>هنوز سندی ثبت نشده است.</strong>
+                کار را با «ثبت معامله جدید» شروع کنید.
+              </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

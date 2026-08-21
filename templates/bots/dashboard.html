@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}ربات تلگرام و واتس‌اپ — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>ربات تلگرام و واتس‌اپ</h1>
+    <p>مشتری به ربات پیام می‌دهد و مانده حسابش را می‌گیرد — بدون اینکه شما کاری بکنید.</p>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'bots:messages' %}" class="btn btn-secondary">تاریخچه پیام‌ها</a>
+  </div>
+</div>
+
+<div class="notice" style="margin-bottom:18px">
+  <strong>ربات فقط اطلاع می‌دهد.</strong>
+  هیچ مشتری‌ای از طریق ربات نمی‌تواند تراکنشی ثبت کند یا چیزی را تغییر بدهد.
+  عمداً این‌طور طراحی شده، چون داده‌های مالی حساس‌اند و یک پیام جعلی نباید بتواند
+  حساب کسی را عوض کند.
+</div>
+
+<div class="grid grid-3" style="margin-bottom:18px">
+  <div class="stat">
+    <div class="stat-label">مشتریان متصل</div>
+    <div class="stat-value">{{ linked|fa }} <span style="font-size:13px; color:var(--text-muted)">از {{ total_customers|fa }}</span></div>
+    <div class="stat-sub">مشتریانی که شناسه تلگرام یا شماره واتس‌اپشان ثبت شده</div>
+  </div>
+  {% for config in configs %}
+    <div class="stat">
+      <div class="stat-label">{{ config.get_platform_display }}</div>
+      <div class="stat-value" style="font-size:15px">
+        {% if config.is_ready %}
+          <span class="badge badge-final">فعال و آماده</span>
+        {% elif config.is_enabled %}
+          <span class="badge badge-draft">فعال ولی ناقص</span>
+        {% else %}
+          <span class="badge badge-neutral">خاموش</span>
+        {% endif %}
+      </div>
+      <div class="stat-sub">
+        <a href="{% url 'bots:settings' config.platform %}">تنظیمات ←</a>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+
+<div class="grid grid-2">
+  {% for config in configs %}
+  <div class="card">
+    <div class="card-head">
+      <h2>{{ config.get_platform_display }}</h2>
+      <div style="display:flex; gap:6px">
+        <form method="post" action="{% url 'bots:test' config.platform %}" class="inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-secondary btn-sm">آزمون اتصال</button>
+        </form>
+        <a href="{% url 'bots:settings' config.platform %}" class="btn btn-secondary btn-sm">تنظیمات</a>
+      </div>
+    </div>
+    <div class="card-body" style="font-size:12.5px">
+      {% if config.platform == 'telegram' %}
+        <p style="margin:0 0 10px"><strong>برای راه‌اندازی:</strong></p>
+        <ol style="margin:0; padding-inline-start:18px">
+          <li>در تلگرام به <code dir="ltr">@BotFather</code> پیام بدهید</li>
+          <li>دستور <code dir="ltr">/newbot</code> را بزنید و یک نام انتخاب کنید</li>
+          <li>توکنی که می‌دهد را در «تنظیمات» بگذارید و تیک فعال را بزنید</li>
+          <li>شناسه تلگرام هر مشتری را در پرونده‌اش ثبت کنید</li>
+        </ol>
+        <div class="notice" style="margin-top:12px; font-size:12px">
+          این ربات به <strong>دامنه و سرور نیاز ندارد</strong>؛ تا وقتی برنامه باز است،
+          خودش هر چند ثانیه پیام‌های جدید را از تلگرام می‌گیرد و پاسخ می‌دهد.
+        </div>
+      {% else %}
+        <p style="margin:0 0 10px"><strong>برای راه‌اندازی:</strong></p>
+        <ol style="margin:0; padding-inline-start:18px">
+          <li>یک حساب WhatsApp Business API بگیرید</li>
+          <li>توکن دسترسی و شناسه شماره فرستنده را در «تنظیمات» وارد کنید</li>
+          <li>آدرس وب‌هوک زیر را در پنل سرویس‌دهنده ثبت کنید</li>
+        </ol>
+        <div class="notice warn" style="margin-top:12px; font-size:12px">
+          <strong>واتس‌اپ رسمی به آدرس اینترنتی نیاز دارد.</strong>
+          برخلاف تلگرام، واتس‌اپ فقط با وب‌هوک کار می‌کند و باید سامانه روی یک
+          دامنه در دسترس باشد. تا آن زمان تلگرام کاملاً کار می‌کند.
+        </div>
+        <p style="margin:10px 0 0">
+          آدرس وب‌هوک:
+          <code dir="ltr">{{ request.scheme }}://{{ request.get_host }}{% url 'bots:whatsapp_webhook' %}</code>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>آخرین پیام‌ها</h2>
+    <a href="{% url 'bots:messages' %}" class="hint">همه پیام‌ها ←</a>
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>زمان</th><th>پیام‌رسان</th><th>جهت</th><th>مشتری</th><th>متن</th><th>وضعیت</th></tr></thead>
+        <tbody>
+          {% for message in recent %}
+            <tr>
+              <td class="muted">{{ message.created_at|jalali_dt }}</td>
+              <td>{{ message.get_platform_display }}</td>
+              <td>{{ message.get_direction_display }}</td>
+              <td>{{ message.party.name|default:"—" }}</td>
+              <td class="wrap muted">{{ message.text|truncatechars:70 }}</td>
+              <td>
+                {% if message.status == 'ok' %}<span class="badge badge-final">موفق</span>
+                {% elif message.status == 'unknown' %}<span class="badge badge-draft">ناشناس</span>
+                {% elif message.status == 'failed' %}<span class="badge badge-void">خطا</span>
+                {% else %}<span class="badge badge-neutral">{{ message.get_status_display }}</span>{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">
+              <strong>هنوز پیامی رد و بدل نشده است.</strong>
+              بعد از فعال کردن ربات، پیام‌ها اینجا ثبت می‌شوند.
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

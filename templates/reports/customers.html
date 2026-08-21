@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}تراز مشتریان — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>تراز کل مشتریان</h1>
+    <p>مانده همه مشتری‌ها در همه ارزها، به‌علاوه ارزش ریالی با نرخ لحظه‌ای.</p>
+  </div>
+  <div class="page-actions">
+    <a href="?export=xlsx{% if not only_nonzero %}&all=1{% endif %}" class="btn btn-secondary">خروجی اکسل</a>
+    <a href="?export=pdf{% if not only_nonzero %}&all=1{% endif %}" class="btn btn-secondary">خروجی PDF</a>
+    <button onclick="window.print()" class="btn btn-secondary">چاپ</button>
+  </div>
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="field" style="min-width:240px">
+    <label>جستجوی مشتری</label>
+    <input type="text" name="q" value="{{ q }}" class="input" placeholder="نام یا شماره تماس">
+  </div>
+  <div class="field">
+    <label>&nbsp;</label>
+    <label style="font-weight:400; font-size:13px; display:flex; align-items:center; gap:6px; padding-top:8px">
+      <input type="checkbox" name="all" value="1" {% if not only_nonzero %}checked{% endif %}> نمایش مشتریان بدون مانده
+    </label>
+  </div>
+  <div class="field"><label>&nbsp;</label><button type="submit" class="btn">اعمال</button></div>
+</form>
+
+<div class="stat" style="margin-bottom:18px; max-width:320px">
+  <div class="stat-label">جمع کل مانده مشتریان</div>
+  <div class="stat-value">{{ grand_total|base_amount }}</div>
+  <div class="stat-sub">{{ BASE_UNIT }} · مثبت یعنی خالص بدهکار</div>
+</div>
+
+<div class="card">
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>مشتری</th><th>تماس</th><th>مانده‌ها به تفکیک ارز</th><th>ارزش کل ({{ BASE_UNIT }})</th><th></th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td><strong>{{ row.party.name }}</strong></td>
+              <td class="muted" dir="ltr" style="text-align:start">{{ row.party.phone|default:"—" }}</td>
+              <td>
+                {% for cell in row.cells %}
+                  <span class="chip">{{ cell.currency|unit_label }}: {% plain_money cell.amount cell.currency %}</span>
+                {% empty %}<span class="muted">بدون مانده</span>{% endfor %}
+                {% if row.missing_rates %}
+                  <span class="chip" style="background:var(--warning-light); border-color:#fde68a">نرخ ناقص</span>
+                {% endif %}
+              </td>
+              <td class="num">{% plain_money row.total_base None %}</td>
+              <td><a href="{% url 'ledger:statement_detail' row.party.pk %}" class="btn btn-secondary btn-sm">صورتحساب</a></td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">مشتری‌ای پیدا نشد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

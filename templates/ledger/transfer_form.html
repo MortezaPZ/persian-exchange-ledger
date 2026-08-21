@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}انتقال داخلی — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>انتقال داخلی</h1>
+    <p>جابه‌جایی وجه بین حساب‌های خود صرافی — مثلاً از صندوق به بانک.</p>
+  </div>
+</div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-body">
+    <form method="post" data-once>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% include "_field.html" with field=form.date %}
+        {% include "_field.html" with field=form.currency %}
+        {% include "_field.html" with field=form.from_account %}
+        {% include "_field.html" with field=form.to_account %}
+        {% include "_field.html" with field=form.amount %}
+        {% include "_field.html" with field=form.description wide=1 %}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">ثبت قطعی سند</button>
+        <a href="{% url 'ledger:dashboard' %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

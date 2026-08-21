@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}تراز دارایی — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>تراز دارایی</h1>
+    <p>خالص ارزش صرافی همین الان — نقدی که در بانک‌ها و صندوق‌ها دارید، به‌علاوه خالص طلب از مشتریان.</p>
+  </div>
+  <div class="page-actions">
+    <a href="?export=xlsx" class="btn btn-secondary">خروجی اکسل</a>
+    <a href="?export=pdf" class="btn btn-secondary">خروجی PDF</a>
+    <button onclick="window.print()" class="btn btn-secondary">چاپ</button>
+  </div>
+</div>
+
+<div class="notice" style="margin-bottom:18px">
+  <strong>این عدد چطور حساب می‌شود؟</strong>
+  برای هر ارز: (نقدی که در بانک‌ها و صندوق‌های آن ارز دارید) + (خالص طلب یا بدهی
+  همه مشتری‌ها در آن ارز). اگر مشتری‌ها روی‌هم به شما بدهکار باشند، این عدد را
+  زیاد می‌کند؛ اگر بستانکار باشند، کم می‌کند. هر ارز با نرخ همین لحظه به
+  {{ BASE_UNIT }} تبدیل و جمع می‌شود.
+</div>
+
+<div class="stat" style="max-width:360px; margin-bottom:18px">
+  <div class="stat-label">جمع کل تراز دارایی</div>
+  <div class="stat-value" style="font-size:26px; color:{% if snapshot.grand_total < 0 %}var(--danger){% else %}var(--success){% endif %}">
+    {{ snapshot.grand_total|base_amount }}
+  </div>
+  <div class="stat-sub">{{ BASE_UNIT }}</div>
+</div>
+
+{% if snapshot.missing_rates %}
+  <div class="notice warn" style="margin-bottom:18px">
+    برای این ارزها نرخ امروز ثبت نشده و در جمع کل نیامده‌اند:
+    {% for c in snapshot.missing_rates %}<span class="chip">{{ c.name }}</span>{% endfor %}
+    <a href="{% url 'core:rate_dashboard' %}">ثبت نرخ ←</a>
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head"><h2>تفکیک به ارز</h2></div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>ارز</th><th>نقدی (بانک/صندوق)</th><th>خالص طلب از مشتریان</th>
+            <th>جمع این ارز</th><th>نرخ روز</th><th>ارزش به {{ BASE_UNIT }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in snapshot.rows %}
+            <tr>
+              <td><strong>{{ row.currency|unit_label }}</strong></td>
+              <td class="num">{% plain_money row.house row.currency %}</td>
+              <td class="num">{% plain_money row.customer row.currency %}</td>
+              <td class="num">{% plain_money row.net row.currency %}</td>
+              <td class="num muted">{% if row.currency.is_base %}—{% elif row.rate %}{{ row.rate|base_amount }}{% else %}<span class="badge badge-neutral">نرخ ندارد</span>{% endif %}</td>
+              <td class="num">{% if row.base_value is not None %}{% plain_money row.base_value None %}{% else %}<span class="muted">—</span>{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6" class="empty">هنوز اسنادی ثبت نشده است.</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if snapshot.rows %}
+        <tfoot>
+          <tr>
+            <td colspan="5">جمع کل به {{ BASE_UNIT }}</td>
+            <td class="num">{% plain_money snapshot.grand_total None %}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="notice" style="margin-top:18px">
+  برای دیدن اینکه کدام مشتری چقدر بدهکار یا بستانکار است، به
+  <a href="{% url 'reports:customers' %}">تراز مشتریان</a> بروید.
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+.env
+
+desktop-data/
+پشتیبان/
+*.sqlite3
+db.sqlite3
+
+build/
+dist/
+*.spec
+
+*.log
+.pytest_cache/
+
+# کلید تولیدشده محلی و فایل‌های آماده‌سازی انتشار
+secret.key
+CURSOR_TASK.md
+.claude/

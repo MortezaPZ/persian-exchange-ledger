@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}سود و زیان روزانه — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>سود و زیان روزانه خرید و فروش</h1>
+    <p>{{ range_label }}</p>
+  </div>
+</div>
+
+{% include "reports/_range_filter.html" %}
+
+<div class="notice" style="margin-bottom:16px">
+  <strong>سود کِی حساب می‌شود؟</strong>
+  سود فقط در لحظه <strong>فروش</strong> تحقق پیدا می‌کند: تفاوت نرخ فروش با
+  میانگین بهای خریدهایتان تا آن لحظه. خرید به‌خودی‌خود سود یا زیان ندارد و فقط
+  میانگین بها را جابه‌جا می‌کند — برای همین روزهایی که فقط خرید داشته‌اید،
+  ستون سود صفر است.
+</div>
+
+<div class="grid grid-4" style="margin-bottom:18px">
+  <div class="stat">
+    <div class="stat-label">جمع خرید</div>
+    <div class="stat-value">{{ totals.buy|base_amount }}</div>
+    <div class="stat-sub">{{ BASE_UNIT }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">جمع فروش</div>
+    <div class="stat-value">{{ totals.sell|base_amount }}</div>
+    <div class="stat-sub">{{ BASE_UNIT }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">سود/زیان کل دوره</div>
+    <div class="stat-value" style="color:{% if totals.profit < 0 %}var(--danger){% else %}var(--success){% endif %}">
+      {{ totals.profit|base_amount }}
+    </div>
+    <div class="stat-sub">
+      {{ BASE_UNIT }}
+      {% if totals.margin is not None %} · حاشیه سود {{ totals.margin|amount:2 }}٪{% endif %}
+    </div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">روزهای سودده / زیان‌ده</div>
+    <div class="stat-value">
+      <span style="color:var(--success)">{{ totals.profit_days|fa }}</span>
+      <span class="muted" style="font-size:16px"> / </span>
+      <span style="color:var(--danger)">{{ totals.loss_days|fa }}</span>
+    </div>
+    <div class="stat-sub">از {{ totals.days|fa }} روز دارای معامله</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>ریز روزانه</h2>
+    <span class="hint">سبز: سود · قرمز: زیان</span>
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>تاریخ</th>
+            <th>خرید ({{ BASE_UNIT }})</th><th>تعداد</th>
+            <th>فروش ({{ BASE_UNIT }})</th><th>تعداد</th>
+            <th>سود/زیان روز</th><th>درصد سود</th><th>سود تجمعی</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.date|jalali }}</td>
+              <td class="num">{% if row.buy_total %}{{ row.buy_total|base_amount }}{% else %}<span class="muted">—</span>{% endif %}</td>
+              <td class="num muted">{{ row.buy_count|fa }}</td>
+              <td class="num">{% if row.sell_total %}{{ row.sell_total|base_amount }}{% else %}<span class="muted">—</span>{% endif %}</td>
+              <td class="num muted">{{ row.sell_count|fa }}</td>
+              <td class="num">
+                {% if row.profit %}
+                  <span class="amount {% if row.profit < 0 %}debit{% else %}credit{% endif %}">{{ row.profit|base_amount }}</span>
+                {% else %}<span class="muted">۰</span>{% endif %}
+              </td>
+              <td class="num muted">{% if row.margin is not None %}{{ row.margin|amount:2 }}٪{% else %}—{% endif %}</td>
+              <td class="num">
+                <span class="amount {% if row.running_profit < 0 %}debit{% else %}credit{% endif %}">{{ row.running_profit|base_amount }}</span>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="empty">
+              <strong>در این بازه معامله‌ای ثبت نشده است.</strong>
+              بازه تاریخ را عوض کنید.
+            </td></tr>
+          {% endfor %}
+        </tbody>
+        {% if rows %}
+        <tfoot>
+          <tr>
+            <td>جمع کل</td>
+            <td class="num">{{ totals.buy|base_amount }}</td><td></td>
+            <td class="num">{{ totals.sell|base_amount }}</td><td></td>
+            <td class="num">
+              <span class="amount {% if totals.profit < 0 %}debit{% else %}credit{% endif %}">{{ totals.profit|base_amount }}</span>
+            </td>
+            <td class="num">{% if totals.margin is not None %}{{ totals.margin|amount:2 }}٪{% endif %}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

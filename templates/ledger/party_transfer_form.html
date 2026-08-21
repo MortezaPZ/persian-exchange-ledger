@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}انتقال بین مشتریان — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>انتقال بین مشتریان</h1>
+    <p>وقتی پول مستقیم بین دو مشتری جابه‌جا می‌شود و به بانک یا صندوق شما نمی‌آید.</p>
+  </div>
+</div>
+
+<div class="notice" style="margin-bottom:16px; max-width:760px">
+  <strong>مثال:</strong>
+  مشتری «الف» یک فیش را مستقیم به حساب مشتری «ب» واریز می‌کند. هیچ وجهی وارد
+  حساب شما نمی‌شود، ولی بدهی و طلب این دو نفر نزد شما جابه‌جا می‌شود:
+  پرداخت‌کننده بستانکار می‌شود و دریافت‌کننده بدهکار.
+</div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-body">
+    {% if form.non_field_errors %}
+      <div class="notice danger" style="margin-bottom:14px">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </div>
+    {% endif %}
+    <form method="post" data-once>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% include "_field.html" with field=form.date %}
+        {% include "_field.html" with field=form.currency %}
+        {% include "_field.html" with field=form.from_party %}
+        {% include "_field.html" with field=form.to_party %}
+        {% include "_field.html" with field=form.amount %}
+        {% include "_field.html" with field=form.description wide=1 %}
+      </div>
+{% if description_suggestions %}
+  <div class="field wide" style="margin-top:-6px">
+    <label>شرح‌های قبلی — برای استفاده کلیک کنید</label>
+    <div class="chips" id="descSuggestions">
+      {% for text in description_suggestions %}
+        <button type="button" class="chip chip-btn" data-text="{{ text }}">{{ text|truncatechars:55 }}</button>
+      {% endfor %}
+    </div>
+    <span class="help">با کلیک، متن در کادر شرح می‌نشیند و می‌توانید عدد و شماره معامله را عوض کنید.</span>
+  </div>
+{% endif %}
+      <div class="form-actions">
+        <button type="submit" class="btn">ثبت قطعی سند</button>
+        <a href="{% url 'ledger:dashboard' %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

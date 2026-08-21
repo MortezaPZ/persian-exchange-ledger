@@ -1,0 +1,7 @@
+{# رندر یک فیلد فرم با برچسب، راهنما و خطا #}
+<div class="field{% if wide %} wide{% endif %}">
+  <label for="{{ field.id_for_label }}"{% if field.field.required %} class="required"{% endif %}>{{ field.label }}</label>
+  {{ field }}
+  {% if field.help_text %}<span class="help">{{ field.help_text }}</span>{% endif %}
+  {% for error in field.errors %}<span class="error">{{ error }}</span>{% endfor %}
+</div>

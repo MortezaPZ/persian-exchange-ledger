@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}منبع نرخ — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% if instance %}تنظیم منبع «{{ instance.title }}»{% else %}تعریف منبع نرخ{% endif %}</h1>
+    <p>سرویس باید خروجی JSON بدهد. مسیر رسیدن به عدد نرخ را به صورت نقطه‌ای بنویسید.</p>
+  </div>
+</div>
+
+<div class="notice" style="margin-bottom:16px; max-width:900px">
+  <strong>مثال:</strong> اگر پاسخ سرویس این باشد
+  <code dir="ltr">{"aed": {"value": 51200}, "usd": {"value": 92000}}</code>
+  آنگاه مسیر درهم می‌شود <code dir="ltr">aed.value</code> و مسیر دلار <code dir="ltr">usd.value</code>.
+  اگر سرویس نرخ را به تومان می‌دهد و واحد ذخیره‌سازی شما ریال است، ضریب تبدیل را ۱۰ بگذارید.
+</div>
+
+<div class="card" style="max-width:900px">
+  <div class="card-body">
+    <form method="post" data-once>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% include "_field.html" with field=form.title %}
+        {% include "_field.html" with field=form.kind %}
+        {% include "_field.html" with field=form.url wide=1 %}
+        {% include "_field.html" with field=form.api_key %}
+        {% include "_field.html" with field=form.timeout_seconds %}
+        {% include "_field.html" with field=form.note wide=1 %}
+      </div>
+      <div class="checkbox-list" style="margin-top:12px">
+        <label>{{ form.is_active }} {{ form.is_active.label }}</label>
+      </div>
+
+      <h3 style="font-size:14px; margin:22px 0 10px">نگاشت ارزها</h3>
+      {{ formset.management_form }}
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>ارز</th><th>مسیر مقدار در پاسخ</th><th>ضریب تبدیل</th><th>حذف</th></tr></thead>
+          <tbody>
+            {% for subform in formset %}
+              <tr>
+                {% for hidden in subform.hidden_fields %}{{ hidden }}{% endfor %}
+                <td>{{ subform.currency }}{% for e in subform.currency.errors %}<span class="error">{{ e }}</span>{% endfor %}</td>
+                <td>{{ subform.json_path }}{% for e in subform.json_path.errors %}<span class="error">{{ e }}</span>{% endfor %}</td>
+                <td>{{ subform.multiplier }}</td>
+                <td>{% if subform.instance.pk %}{{ subform.DELETE }}{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn">ذخیره</button>
+        <a href="{% url 'core:rate_dashboard' %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

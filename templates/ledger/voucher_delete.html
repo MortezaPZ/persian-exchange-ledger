@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}حذف سند {{ voucher.number|fa }} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>حذف کامل سند شماره {{ voucher.number|fa }}</h1>
+    <p>{{ voucher.get_kind_display }} — {{ voucher.date|jalali }}</p>
+  </div>
+</div>
+
+<div class="notice danger" style="margin-bottom:16px; max-width:820px">
+  <strong>این سند کاملاً پاک می‌شود و برنمی‌گردد.</strong>
+  برخلاف «ابطال»، اینجا هیچ سند برگشتی ساخته نمی‌شود و ردی از خود سند نمی‌ماند.
+  فقط خلاصه‌اش در تاریخچه تغییرات ثبت می‌شود.
+</div>
+
+<div class="notice warn" style="margin-bottom:16px; max-width:820px">
+  <strong>کِی از حذف استفاده کنید و کِی از ابطال؟</strong>
+  اگر سند را همین الان اشتباه ثبت کرده‌اید و هنوز به کسی نشان نداده‌اید،
+  <strong>حذف</strong> ساده‌تر است. اگر سند قبلاً در گزارشی رفته یا مشتری دیده،
+  <a href="{% url 'ledger:voucher_void' voucher.pk %}">ابطال با سند برگشتی</a>
+  درست‌تر است چون ردش می‌ماند.
+</div>
+
+<div class="card" style="max-width:820px">
+  <div class="card-head"><h2>سندی که حذف می‌شود</h2></div>
+  <div class="card-body">
+    <p style="margin:0 0 14px">{{ voucher.description }}</p>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>طرف حساب</th><th>ارز</th><th>مبلغ</th></tr></thead>
+        <tbody>
+          {% for entry in voucher.entries.all %}
+            <tr>
+              <td>{{ entry.party.name }}</td>
+              <td>{{ entry.currency|unit_label }}</td>
+              <td class="num">{% plain_money entry.amount entry.currency %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <form method="post" data-once style="margin-top:18px">
+      {% csrf_token %}
+      <div class="field">
+        <label class="required">علت حذف</label>
+        <textarea name="reason" class="input" rows="3" required
+                  placeholder="مثلاً: اشتباه وارد شده بود و دوباره ثبت می‌شود"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-danger">حذف کامل سند</button>
+        <a href="{% url 'ledger:voucher_detail' voucher.pk %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

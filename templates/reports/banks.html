@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}وضعیت بانک‌ها — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>وضعیت بانک‌ها، صندوق‌ها و موقعیت ارزی</h1>
+    <p>در گوگل‌شیت وقتی می‌نویسید «واریز به حساب سامان»، فقط حساب مشتری عوض می‌شد. اینجا موجودی خود بانک هم خودکار به‌روز می‌شود.</p>
+  </div>
+  <div class="page-actions">
+    <a href="?export=xlsx" class="btn btn-secondary">خروجی اکسل</a>
+    <a href="?export=pdf" class="btn btn-secondary">خروجی PDF</a>
+    <button onclick="window.print()" class="btn btn-secondary">چاپ</button>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>حساب</th><th>نوع</th><th>ارز</th><th>مانده</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td><a href="{% url 'core:party_detail' row.party.pk %}">{{ row.party.name }}</a></td>
+              <td>{{ row.party.kind_label }}</td>
+              <td>{{ row.currency|unit_label }}</td>
+              <td class="num">{% plain_money row.amount row.currency %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">
+              <strong>هنوز بانک یا صندوقی تعریف نشده است.</strong>
+              از بخش «طرف حساب‌ها» اضافه کنید.
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

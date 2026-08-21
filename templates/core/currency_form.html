@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}{% if instance %}ویرایش ارز{% else %}ارز جدید{% endif %} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h1>{% if instance %}ویرایش ارز {{ instance.name }}{% else %}تعریف ارز جدید{% endif %}</h1></div>
+</div>
+
+<div class="card" style="max-width:700px">
+  <div class="card-body">
+    {% if form.non_field_errors %}
+      <div class="notice danger" style="margin-bottom:14px">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
+    {% endif %}
+    <form method="post" data-once>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% include "_field.html" with field=form.name %}
+        {% include "_field.html" with field=form.code %}
+        {% include "_field.html" with field=form.symbol %}
+        {% include "_field.html" with field=form.decimal_places %}
+        {% include "_field.html" with field=form.sort_order %}
+      </div>
+      <div class="checkbox-list" style="margin-top:14px">
+        <label>{{ form.is_base }} {{ form.is_base.label }}</label>
+        {% for e in form.is_base.errors %}<span class="error">{{ e }}</span>{% endfor %}
+        <label>{{ form.is_active }} {{ form.is_active.label }}</label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">ذخیره</button>
+        <a href="{% url 'core:currency_list' %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
