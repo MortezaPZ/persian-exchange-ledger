@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}ابطال سند {{ voucher.number|fa }} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>ابطال سند شماره {{ voucher.number|fa }}</h1>
+    <p>{{ voucher.get_kind_display }} — {{ voucher.date|jalali }}</p>
+  </div>
+</div>
+
+<div class="notice warn" style="margin-bottom:16px; max-width:760px">
+  <strong>سند اصلی پاک نمی‌شود.</strong>
+  یک سند جدید با مبالغ قرینه صادر می‌شود تا اثر این سند خنثی گردد. هم اشتباه اصلاح می‌شود،
+  هم ردپای هر دو سند در سیستم می‌ماند. این قاعده برای مدیر هم استثنا ندارد.
+</div>
+
+<div class="card" style="max-width:760px">
+  <div class="card-head"><h2>شرح سند</h2></div>
+  <div class="card-body">
+    <p style="margin:0 0 14px">{{ voucher.description }}</p>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>طرف حساب</th><th>ارز</th><th>مبلغ</th></tr></thead>
+        <tbody>
+          {% for entry in voucher.entries.all %}
+            <tr>
+              <td>{{ entry.party.name }}</td>
+              <td>{{ entry.currency|unit_label }}</td>
+              <td class="num">{% plain_money entry.amount entry.currency %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <form method="post" data-once style="margin-top:18px">
+      {% csrf_token %}
+      <div class="form-grid single">
+        {% include "_field.html" with field=form.reason %}
+      </div>
+      <div class="checkbox-list" style="margin-top:10px">
+        <label>{{ form.confirm }} {{ form.confirm.label }}</label>
+        {% for error in form.confirm.errors %}<span class="error">{{ error }}</span>{% endfor %}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-danger">صدور سند برگشتی</button>
+        <a href="{% url 'ledger:voucher_detail' voucher.pk %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

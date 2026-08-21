@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}طرف حساب‌ها — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>طرف حساب‌ها</h1>
+    <p>مشتری‌ها، بانک‌ها، صندوق‌ها و موقعیت‌های ارزی — همه در یک جدول، چون هر رویداد مالی دو طرف دارد.</p>
+  </div>
+  {% if 'party.manage' in MY_PERMS %}
+  <div class="page-actions">
+    <a href="{% url 'core:party_create' %}" class="btn">تعریف طرف حساب جدید</a>
+  </div>
+  {% endif %}
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="field" style="min-width:220px">
+    <label>جستجو</label>
+    <input type="text" name="q" value="{{ q }}" class="input" placeholder="نام، کد یا شماره تماس">
+  </div>
+  <div class="field">
+    <label>نوع</label>
+    <select name="kind" class="input">
+      <option value="">همه</option>
+      {% for value, label in kinds %}
+        <option value="{{ value }}" {% if kind == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label>&nbsp;</label>
+    <label style="font-weight:400; font-size:13px; display:flex; align-items:center; gap:6px; padding-top:8px">
+      <input type="checkbox" name="inactive" value="1" {% if show_inactive %}checked{% endif %}> نمایش غیرفعال‌ها
+    </label>
+  </div>
+  <div class="field"><label>&nbsp;</label><button type="submit" class="btn">اعمال</button></div>
+</form>
+
+<div class="card">
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>نام</th><th>نوع</th><th>ارز حساب</th><th>تماس</th><th>مانده‌ها</th><th>وضعیت</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td><a href="{% url 'core:party_detail' row.party.pk %}"><strong>{{ row.party.name }}</strong></a></td>
+              <td>{{ row.party.kind_label }}</td>
+              <td>{{ row.party.currency.name|default:"چندارزی" }}</td>
+              <td class="muted" dir="ltr" style="text-align:start">{{ row.party.phone|default:"—" }}</td>
+              <td>
+                {% for cell in row.cells %}
+                  <span class="chip">{{ cell.currency|unit_label }}: {% plain_money cell.amount cell.currency %}</span>
+                {% empty %}<span class="muted">—</span>{% endfor %}
+              </td>
+              <td>
+                {% if row.party.is_active %}<span class="badge badge-final">فعال</span>
+                {% else %}<span class="badge badge-neutral">غیرفعال</span>{% endif %}
+              </td>
+              <td>
+                <a href="{% url 'ledger:statement_detail' row.party.pk %}" class="btn btn-secondary btn-sm">صورتحساب</a>
+                {% if 'party.manage' in MY_PERMS %}
+                  <a href="{% url 'core:party_edit' row.party.pk %}" class="btn btn-secondary btn-sm">ویرایش</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="empty">
+              <strong>طرف حسابی پیدا نشد.</strong>
+              {% if 'party.manage' in MY_PERMS %}با دکمه بالا اولین مشتری را تعریف کنید.{% endif %}
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

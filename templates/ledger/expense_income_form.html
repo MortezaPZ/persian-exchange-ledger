@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ title }}</h1>
+    <p>
+      {% if kind == 'expense' %}
+        پولی که از بانک، صندوق یا حساب یک مشتری خارج می‌شود و صرف هزینه‌ای مثل اجاره، حقوق یا قبض می‌شود.
+      {% else %}
+        پولی که وارد بانک، صندوق یا حساب یک مشتری می‌شود و ربطی به معامله خرید/فروش ارز ندارد — مثل کارمزد.
+      {% endif %}
+    </p>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'core:party_create' %}" class="btn btn-secondary">دسته‌بندی جدید بسازید</a>
+  </div>
+</div>
+
+{% if not form.fields.category.queryset.exists %}
+<div class="notice warn" style="margin-bottom:16px; max-width:760px">
+  <strong>هنوز هیچ دسته‌بندی {% if kind == 'expense' %}هزینه{% else %}درآمد{% endif %}ای ندارید.</strong>
+  اول از دکمه بالا یک دسته‌بندی بسازید — مثلاً «اجاره دفتر» یا «حقوق پرسنل».
+  نوع طرف حساب را «{% if kind == 'expense' %}دسته‌بندی هزینه{% else %}دسته‌بندی درآمد{% endif %}» انتخاب کنید.
+</div>
+{% endif %}
+
+<div class="card" style="max-width:760px">
+  <div class="card-body">
+    {% if form.non_field_errors %}
+      <div class="notice danger" style="margin-bottom:14px">
+        {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+      </div>
+    {% endif %}
+    <form method="post" data-once>
+      {% csrf_token %}
+      <div class="form-grid">
+        {% include "_field.html" with field=form.date %}
+        {% include "_field.html" with field=form.category %}
+        {% include "_field.html" with field=form.currency %}
+        {% include "_field.html" with field=form.account %}
+        {% include "_field.html" with field=form.amount %}
+        {% include "_field.html" with field=form.description wide=1 %}
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn">ثبت قطعی سند</button>
+        <a href="{% url 'ledger:dashboard' %}" class="btn btn-secondary">انصراف</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

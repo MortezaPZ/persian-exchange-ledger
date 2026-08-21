@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}دفتر اسناد — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>دفتر اسناد</h1>
+    <p>همه رویدادهای مالی ثبت‌شده، از جدید به قدیم. سند قطعی حذف نمی‌شود؛ فقط با سند برگشتی اصلاح می‌گردد.</p>
+  </div>
+</div>
+
+<form method="get" class="filter-bar">
+  {% include "_field.html" with field=form.q %}
+  {% include "_field.html" with field=form.kind %}
+  {% include "_field.html" with field=form.status %}
+  {% include "_field.html" with field=form.date_from %}
+  {% include "_field.html" with field=form.date_to %}
+  <div class="field">
+    <label>&nbsp;</label>
+    <button type="submit" class="btn">اعمال فیلتر</button>
+  </div>
+  <div class="field">
+    <label>&nbsp;</label>
+    <a href="{% url 'ledger:voucher_list' %}" class="btn btn-secondary">حذف فیلتر</a>
+  </div>
+</form>
+
+<div class="card">
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>شماره</th><th>تاریخ</th><th>نوع</th><th>شرح</th>
+            <th>سطرها</th><th>ثبت‌کننده</th><th>وضعیت</th><th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for voucher in page %}
+            <tr>
+              <td><a href="{% url 'ledger:voucher_detail' voucher.pk %}"><strong>{{ voucher.number|fa }}</strong></a></td>
+              <td>{{ voucher.date|jalali }}</td>
+              <td>{{ voucher.get_kind_display }}</td>
+              <td class="wrap">{{ voucher.description|truncatechars:80 }}</td>
+              <td>{{ voucher.entries.count|fa }} سطر</td>
+              <td>{{ voucher.created_by.display_name }}</td>
+              <td><span class="badge {{ voucher.status_css }}">{{ voucher.get_status_display }}</span></td>
+              <td style="white-space:nowrap">
+                {% if 'voucher.edit' in MY_PERMS and user.is_superuser and not voucher.reverses %}
+                  <a href="{% url 'ledger:voucher_edit' voucher.pk %}" class="btn btn-secondary btn-sm"
+                     onclick="return confirm('سند حذف می‌شود و اطلاعاتش در فرم ثبت پیش‌پر می‌شود. ادامه؟');">ویرایش</a>
+                  <a href="{% url 'ledger:voucher_delete' voucher.pk %}" class="btn btn-secondary btn-sm">حذف</a>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="empty"><strong>سندی پیدا نشد.</strong>فیلترها را تغییر دهید.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if page.paginator.num_pages > 1 %}
+<div class="pagination">
+  {% if page.has_previous %}<a href="{% query_string page=page.previous_page_number %}">قبلی</a>{% endif %}
+  <span class="current">{{ page.number|fa }} از {{ page.paginator.num_pages|fa }}</span>
+  {% if page.has_next %}<a href="{% query_string page=page.next_page_number %}">بعدی</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

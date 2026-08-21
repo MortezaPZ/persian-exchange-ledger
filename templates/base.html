@@ -1,0 +1,144 @@
+{% load static sarrafi %}<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body class="{% if user.is_authenticated %}has-nav{% endif %}">
+
+{% if user.is_authenticated %}
+<header class="topbar">
+  <button class="menu-toggle" id="menuToggle" aria-label="منو">☰</button>
+  <a class="brand" href="{% url 'ledger:dashboard' %}">
+    <span class="brand-mark">₪</span>
+    <span class="brand-text">{{ APP_NAME }}</span>
+  </a>
+  {% if TOPBAR_BALANCES %}
+    <div class="topbar-balances" id="topbarBalances" title="موجودی صرافی از هر ارز">
+      {% for row in TOPBAR_BALANCES %}
+        <span class="tb-item">
+          <span class="tb-name">{{ row.currency|unit_label }}</span>
+          <span class="tb-value {% if row.amount < 0 %}neg{% elif row.amount > 0 %}pos{% endif %}">{% topbar_amount row %}</span>
+        </span>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="topbar-left">
+    <span class="today">{{ TODAY_JALALI|fa }}</span>
+    <div class="user-chip">
+      <a href="{% url 'accounts:profile' %}">{{ user.display_name }}</a>
+      <small>{{ user.role_title }}</small>
+    </div>
+    <form method="post" action="{% url 'accounts:logout' %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-ghost btn-sm">خروج</button>
+    </form>
+  </div>
+</header>
+
+<nav class="sidebar" id="sidebar">
+  <div class="nav-group">
+    <span class="nav-title">عملیات روزانه</span>
+    <a href="{% url 'ledger:dashboard' %}" class="nav-link">داشبورد</a>
+    {% if 'voucher.add' in MY_PERMS %}
+      <a href="{% url 'ledger:deal_create' %}" class="nav-link accent">ثبت معامله</a>
+      <a href="{% url 'ledger:cash_create' 'receive' %}" class="nav-link">ثبت دریافت</a>
+      <a href="{% url 'ledger:cash_create' 'pay' %}" class="nav-link">ثبت پرداخت</a>
+      <a href="{% url 'ledger:transfer_create' %}" class="nav-link">انتقال داخلی</a>
+      <a href="{% url 'ledger:party_transfer_create' %}" class="nav-link">انتقال بین مشتریان</a>
+      <a href="{% url 'ledger:expense_income_create' 'expense' %}" class="nav-link">ثبت هزینه</a>
+      <a href="{% url 'ledger:expense_income_create' 'income' %}" class="nav-link">ثبت درآمد</a>
+    {% endif %}
+  </div>
+
+  <div class="nav-group">
+    <span class="nav-title">حساب‌ها</span>
+    {% if 'party.view' in MY_PERMS or 'party.manage' in MY_PERMS %}
+      <a href="{% url 'core:party_list' %}" class="nav-link">طرف حساب‌ها</a>
+    {% endif %}
+    {% if 'report.statement' in MY_PERMS %}
+      <a href="{% url 'ledger:statement' %}" class="nav-link">صورتحساب مشتری</a>
+    {% endif %}
+    {% if 'voucher.view' in MY_PERMS %}
+      <a href="{% url 'ledger:voucher_list' %}" class="nav-link">دفتر اسناد</a>
+    {% endif %}
+  </div>
+
+  <div class="nav-group">
+    <span class="nav-title">گزارش‌ها</span>
+    {% if 'report.daily' in MY_PERMS %}
+      <a href="{% url 'reports:daily' %}" class="nav-link">خرید و فروش روزانه</a>
+    {% endif %}
+    {% if 'report.profit' in MY_PERMS %}
+      <a href="{% url 'reports:daily_profit' %}" class="nav-link">سود و زیان روزانه</a>
+      <a href="{% url 'reports:profit' %}" class="nav-link">سود و زیان تسعیر</a>
+    {% endif %}
+    {% if 'report.trial' in MY_PERMS %}
+      <a href="{% url 'reports:net_worth' %}" class="nav-link">تراز دارایی</a>
+      <a href="{% url 'reports:trial' %}" class="nav-link">تراز کل</a>
+      <a href="{% url 'reports:banks' %}" class="nav-link">وضعیت بانک‌ها</a>
+    {% endif %}
+    {% if 'report.statement' in MY_PERMS %}
+      <a href="{% url 'reports:customers' %}" class="nav-link">تراز مشتریان</a>
+    {% endif %}
+  </div>
+
+  <div class="nav-group">
+    <span class="nav-title">تنظیمات</span>
+    <a href="{% url 'core:rate_dashboard' %}" class="nav-link">نرخ ارز</a>
+    <a href="{% url 'maintenance:mobile' %}" class="nav-link">دسترسی از گوشی</a>
+    {% if 'backup.manage' in MY_PERMS %}
+      <a href="{% url 'maintenance:backup' %}" class="nav-link">پشتیبان‌گیری</a>
+    {% endif %}
+    {% if 'bot.manage' in MY_PERMS %}
+      <a href="{% url 'bots:dashboard' %}" class="nav-link">ربات تلگرام و واتس‌اپ</a>
+    {% endif %}
+    {% if 'currency.manage' in MY_PERMS %}
+      <a href="{% url 'core:currency_list' %}" class="nav-link">ارزها</a>
+    {% endif %}
+    {% if 'voucher.add' in MY_PERMS %}
+      <a href="{% url 'ledger:opening_create' %}" class="nav-link">مانده افتتاحیه</a>
+    {% endif %}
+    {% if 'user.manage' in MY_PERMS %}
+      <a href="{% url 'accounts:user_list' %}" class="nav-link">کاربران</a>
+      <a href="{% url 'accounts:role_list' %}" class="nav-link">نقش‌ها و دسترسی‌ها</a>
+    {% endif %}
+    {% if 'audit.view' in MY_PERMS %}
+      <a href="{% url 'accounts:audit_list' %}" class="nav-link">تاریخچه تغییرات</a>
+    {% endif %}
+  </div>
+</nav>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+{% endif %}
+
+<main class="{% if user.is_authenticated %}content{% else %}content-plain{% endif %}">
+  {% if MUST_CHANGE_PASSWORD %}
+    <div class="notice danger" style="margin-bottom:16px">
+      <strong>رمز عبور شما هنوز رمز پیش‌فرض است.</strong>
+      تا وقتی عوضش نکنید، هر کسی که این رمز را بداند می‌تواند وارد حساب شما شود.
+      <a href="{% url 'accounts:profile' %}">همین حالا رمز را عوض کنید ←</a>
+    </div>
+  {% endif %}
+
+  {% if messages %}
+    <div class="messages">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }}">
+          <span>{{ message }}</span>
+          <button type="button" class="alert-close" aria-label="بستن">×</button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<script src="{% static 'js/app.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}سند {{ voucher.number|fa }} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>سند شماره {{ voucher.number|fa }}
+      <span class="badge {{ voucher.status_css }}">{{ voucher.get_status_display }}</span>
+    </h1>
+    <p>{{ voucher.get_kind_display }} — {{ voucher.date|jalali_long }}</p>
+  </div>
+  <div class="page-actions">
+    <button onclick="window.print()" class="btn btn-secondary">چاپ</button>
+    {% if 'voucher.edit' in MY_PERMS and user.is_superuser and not reversal and not voucher.reverses %}
+      <a href="{% url 'ledger:voucher_edit' voucher.pk %}" class="btn btn-secondary"
+         onclick="return confirm('سند حذف می‌شود و اطلاعاتش در فرم ثبت پیش‌پر می‌شود. ادامه؟');">ویرایش</a>
+      <a href="{% url 'ledger:voucher_delete' voucher.pk %}" class="btn btn-secondary">حذف</a>
+    {% endif %}
+    {% if 'voucher.void' in MY_PERMS and voucher.status == 'final' and not reversal %}
+      <a href="{% url 'ledger:voucher_void' voucher.pk %}" class="btn btn-danger">ابطال با سند برگشتی</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if voucher.status == 'void' %}
+  <div class="notice danger" style="margin-bottom:16px">
+    <strong>این سند باطل شده است.</strong>
+    علت: {{ voucher.void_reason }}
+    {% if reversal %} — سند برگشتی: <a href="{% url 'ledger:voucher_detail' reversal.pk %}">شماره {{ reversal.number|fa }}</a>{% endif %}
+  </div>
+{% endif %}
+
+{% if voucher.reverses %}
+  <div class="notice warn" style="margin-bottom:16px">
+    این سند، سند برگشتیِ <a href="{% url 'ledger:voucher_detail' voucher.reverses.pk %}">سند شماره {{ voucher.reverses.number|fa }}</a> است.
+  </div>
+{% endif %}
+
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-head"><h2>مشخصات سند</h2></div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>شماره سند</dt><dd>{{ voucher.number|fa }}</dd>
+        <dt>تاریخ</dt><dd>{{ voucher.date|jalali }} ({{ voucher.date|jalali_long }})</dd>
+        <dt>نوع</dt><dd>{{ voucher.get_kind_display }}</dd>
+        <dt>وضعیت</dt><dd><span class="badge {{ voucher.status_css }}">{{ voucher.get_status_display }}</span></dd>
+        <dt>ثبت‌کننده</dt><dd>{{ voucher.created_by.display_name }}</dd>
+        <dt>زمان ثبت</dt><dd>{{ voucher.created_at|jalali_dt }}</dd>
+        {% if voucher.external_key %}<dt>کلید یکتا</dt><dd style="direction:ltr">{{ voucher.external_key }}</dd>{% endif %}
+        <dt>شرح</dt><dd>{{ voucher.description|default:"—" }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  {% if deal %}
+  <div class="card">
+    <div class="card-head"><h2>جزئیات معامله</h2></div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>نوع معامله</dt>
+        <dd><span class="badge {% if deal.side == 'buy' %}badge-buy{% else %}badge-sell{% endif %}">{{ deal.get_side_display }}</span></dd>
+        <dt>طرف معامله</dt><dd><a href="{% url 'ledger:statement_detail' deal.counterparty.pk %}">{{ deal.counterparty.name }}</a></dd>
+        <dt>ارز</dt><dd>{{ deal.currency.name }}</dd>
+        <dt>تعداد</dt><dd class="num">{{ deal.quantity|amount:deal.currency.decimal_places }}</dd>
+        <dt>نرخ هر واحد</dt><dd class="num">{{ deal.unit_price|base_amount }} {{ BASE_UNIT }}</dd>
+        <dt>مبلغ کل</dt><dd class="num"><strong>{{ deal.total_base|base_amount }} {{ BASE_UNIT }}</strong></dd>
+        {% if 'report.profit' in MY_PERMS %}
+          <dt>میانگین بهای تمام‌شده</dt><dd class="num">{{ deal.avg_cost_at_time|base_amount }}</dd>
+          <dt>سود/زیان این معامله</dt>
+          <dd class="num">{% plain_money deal.realized_pnl None %} {{ BASE_UNIT }}</dd>
+        {% endif %}
+      </dl>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>سطرهای سند</h2>
+    <span class="hint">جمع هر ارز باید دقیقاً صفر باشد — همین تضمین می‌کند پولی گم یا اضافه نشود.</span>
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>ردیف</th><th>طرف حساب</th><th>ارز</th><th>بدهکار</th><th>بستانکار</th><th>نرخ قفل‌شده</th><th>شرح</th></tr>
+        </thead>
+        <tbody>
+          {% for entry in voucher.entries.all %}
+            <tr>
+              <td>{{ entry.row_no|fa }}</td>
+              <td>{{ entry.party.name }}</td>
+              <td>{{ entry.currency|unit_label }}</td>
+              <td class="num">{% if entry.amount > 0 %}<span class="amount debit">{% if entry.currency.is_base %}{{ entry.amount|base_amount }}{% else %}{{ entry.amount|amount:entry.currency.decimal_places }}{% endif %}</span>{% else %}—{% endif %}</td>
+              <td class="num">{% if entry.amount < 0 %}<span class="amount credit">{% if entry.currency.is_base %}{{ entry.credit|base_amount }}{% else %}{{ entry.credit|amount:entry.currency.decimal_places }}{% endif %}</span>{% else %}—{% endif %}</td>
+              <td class="num muted">{{ entry.rate_to_base|amount:2 }}</td>
+              <td class="wrap muted">{{ entry.description }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}سود و زیان تسعیر — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>گزارش سود و زیان تسعیر</h1>
+    <p>{{ range_label }}</p>
+  </div>
+</div>
+
+{% include "reports/_range_filter.html" %}
+
+<div class="notice" style="margin-bottom:16px">
+  <strong>دو نوع سود:</strong>
+  «سود تحقق‌یافته» یعنی سودی که با فروش واقعاً به دست آمده — از تفاوت نرخ فروش با میانگین بهای خریدها.
+  «سود تسعیر» یعنی سودی که هنوز روی کاغذ است: ارزی که دارید امروز گران‌تر (یا ارزان‌تر) از قیمت خریدتان است.
+</div>
+
+<div class="grid grid-3" style="margin-bottom:18px">
+  <div class="stat">
+    <div class="stat-label">سود تحقق‌یافته</div>
+    <div class="stat-value" style="color:{% if totals.realized < 0 %}var(--danger){% else %}var(--success){% endif %}">{{ totals.realized|base_amount }}</div>
+    <div class="stat-sub">{{ BASE_UNIT }} · از معاملات فروش این بازه</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">سود/زیان تسعیر (تحقق‌نیافته)</div>
+    <div class="stat-value" style="color:{% if totals.unrealized < 0 %}var(--danger){% else %}var(--success){% endif %}">{{ totals.unrealized|base_amount }}</div>
+    <div class="stat-sub">{{ BASE_UNIT }} · روی موجودی فعلی با نرخ امروز</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">جمع</div>
+    <div class="stat-value" style="color:{% if totals.net < 0 %}var(--danger){% else %}var(--success){% endif %}">{{ totals.net|base_amount }}</div>
+    <div class="stat-sub">{{ BASE_UNIT }}</div>
+  </div>
+</div>
+
+{% if missing %}
+  <div class="notice warn" style="margin-bottom:16px">
+    برای این ارزها نرخ امروز ثبت نشده، پس سود تسعیرشان محاسبه نشده است:
+    {% for c in missing %}<span class="chip">{{ c.name }}</span>{% endfor %}
+    <a href="{% url 'core:rate_dashboard' %}">ثبت نرخ ←</a>
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>ارز</th><th>مقدار فروش</th><th>گردش فروش</th><th>تعداد معامله</th>
+            <th>سود تحقق‌یافته</th><th>موجودی فعلی</th><th>میانگین بها</th>
+            <th>نرخ امروز</th><th>سود/زیان تسعیر</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td><strong>{{ row.currency.name }}</strong></td>
+              <td class="num">{{ row.sold_qty|amount:row.currency.decimal_places }}</td>
+              <td class="num">{{ row.turnover|base_amount }}</td>
+              <td class="num">{{ row.deal_count|fa }}</td>
+              <td class="num">{% plain_money row.realized None %}</td>
+              <td class="num">{{ row.position_qty|amount:row.currency.decimal_places }}</td>
+              <td class="num muted">{{ row.avg_cost|base_amount }}</td>
+              <td class="num muted">{% if row.current_rate %}{{ row.current_rate|base_amount }}{% else %}<span class="badge badge-neutral">نرخ ندارد</span>{% endif %}</td>
+              <td class="num">{% if row.unrealized is not None %}{% plain_money row.unrealized None %}{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="9" class="empty">در این بازه معامله‌ای ثبت نشده است.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

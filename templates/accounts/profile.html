@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}حساب من — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div><h1>حساب کاربری من</h1></div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-head"><h2>مشخصات</h2></div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>نام کاربری</dt><dd dir="ltr" style="text-align:start">{{ user.username }}</dd>
+        <dt>نام</dt><dd>{{ user.full_name|default:"—" }}</dd>
+        <dt>نقش</dt><dd>{{ user.role_title }}</dd>
+        <dt>شماره تماس</dt><dd dir="ltr" style="text-align:start">{{ user.phone|default:"—" }}</dd>
+      </dl>
+      <div class="chips" style="margin-top:14px">
+        {% for code in MY_PERMS %}<span class="chip">{{ code }}</span>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>تغییر رمز عبور</h2></div>
+    <div class="card-body">
+      <form method="post" data-once>
+        {% csrf_token %}
+        <div class="form-grid single">
+          {% include "_field.html" with field=form.current_password %}
+          {% include "_field.html" with field=form.new_password1 %}
+          {% include "_field.html" with field=form.new_password2 %}
+        </div>
+        <div class="form-actions"><button type="submit" class="btn">تغییر رمز</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}نرخ ارز — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>نرخ ارز</h1>
+    <p>نرخ‌ها روی هم نوشته نمی‌شوند؛ نرخ دیروز پاک نمی‌شود تا نرخ امروز جایش بنشیند. گزارش سه ماه پیش، سه ماه دیگر هم همان اعداد را می‌دهد.</p>
+  </div>
+  {% if 'fxrate.manage' in MY_PERMS %}
+  <div class="page-actions">
+    <form method="post" action="{% url 'core:rate_fetch_all' %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-secondary">دریافت از همه منابع</button>
+    </form>
+    <a href="{% url 'core:rate_source_create' %}" class="btn btn-secondary">تعریف منبع نرخ</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-head"><h2>آخرین نرخ هر ارز</h2></div>
+    <div class="card-body tight">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>ارز</th><th>نرخ ({{ BASE_UNIT }})</th><th>منبع</th><th>زمان</th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <td><strong>{{ row.currency.name }}</strong></td>
+                <td class="num">{% if row.rate %}{{ row.rate.rate_to_base|base_amount }}{% else %}<span class="badge badge-neutral">ثبت نشده</span>{% endif %}</td>
+                <td class="muted">{% if row.rate %}{{ row.rate.source_label|default:"—" }}{% else %}—{% endif %}</td>
+                <td class="muted">{% if row.rate %}{{ row.rate.effective_at|jalali_dt }}{% else %}—{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="empty">ارز غیرپایه‌ای تعریف نشده است.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if 'fxrate.manage' in MY_PERMS %}
+  <div class="card">
+    <div class="card-head">
+      <h2>ثبت دستی نرخ</h2>
+      <span class="hint">همیشه در دسترس، بی‌نیاز از اینترنت</span>
+    </div>
+    <div class="card-body">
+      <form method="post" action="{% url 'core:rate_manual_add' %}">
+        {% csrf_token %}
+        <div class="form-grid single">
+          {% include "_field.html" with field=form.currency %}
+          {% include "_field.html" with field=form.rate %}
+          {% include "_field.html" with field=form.note %}
+        </div>
+        <div class="form-actions"><button type="submit" class="btn">ثبت نرخ</button></div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+{% if 'fxrate.manage' in MY_PERMS %}
+<div class="card">
+  <div class="card-head">
+    <h2>منابع اینترنتی نرخ</h2>
+    <span class="hint">آدرس سرویس و مسیر عدد نرخ در پاسخ، اینجا تعریف می‌شود — اتصال به هر سایت نرخ‌دهنده‌ای بدون تغییر برنامه ممکن است.</span>
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>عنوان</th><th>نوع</th><th>ارزهای تعریف‌شده</th><th>وضعیت</th><th></th></tr></thead>
+        <tbody>
+          {% for source in sources %}
+            <tr>
+              <td><strong>{{ source.title }}</strong></td>
+              <td>{{ source.get_kind_display }}</td>
+              <td>
+                {% for mapping in source.mappings.all %}
+                  <span class="chip">{{ mapping.currency.name }} → <code dir="ltr">{{ mapping.json_path }}</code></span>
+                {% empty %}<span class="muted">تعریف نشده</span>{% endfor %}
+              </td>
+              <td>{% if source.is_active %}<span class="badge badge-final">فعال</span>{% else %}<span class="badge badge-neutral">غیرفعال</span>{% endif %}</td>
+              <td>
+                {% if source.kind == 'http_json' %}
+                  <form method="post" action="{% url 'core:rate_fetch' source.pk %}" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary btn-sm">دریافت الان</button>
+                  </form>
+                {% endif %}
+                <a href="{% url 'core:rate_source_edit' source.pk %}" class="btn btn-secondary btn-sm">تنظیم</a>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">
+              <strong>هنوز منبع اینترنتی تعریف نشده است.</strong>
+              تا آن زمان، نرخ‌ها را دستی وارد کنید — سیستم کاملاً کار می‌کند.
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head"><h2>۵۰ نرخ آخر (تاریخچه)</h2></div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>ارز</th><th>نرخ</th><th>منبع</th><th>زمان اعتبار</th><th>ثبت‌کننده</th></tr></thead>
+        <tbody>
+          {% for rate in history %}
+            <tr>
+              <td>{{ rate.currency.name }}</td>
+              <td class="num">{{ rate.rate_to_base|base_amount }}</td>
+              <td class="muted">{{ rate.source_label|default:"—" }}</td>
+              <td class="muted">{{ rate.effective_at|jalali_dt }}</td>
+              <td class="muted">{{ rate.created_by.display_name|default:"سیستم" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">هنوز نرخی ثبت نشده است.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

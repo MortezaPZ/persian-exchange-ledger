@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}تاریخچه تغییرات — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>تاریخچه تغییرات</h1>
+    <p>هر کاری که هر کاربری در سیستم انجام می‌دهد اینجا ثبت می‌شود: چه کسی، چه ساعتی، از چه آی‌پی. اگر یک روز مانده‌ای مشکوک بود، دقیقاً می‌شود رد تغییرات را گرفت.</p>
+  </div>
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="field" style="min-width:240px">
+    <label>جستجو</label>
+    <input type="text" name="q" value="{{ q }}" class="input" placeholder="شرح، نام کاربری یا شناسه">
+  </div>
+  <div class="field">
+    <label>نوع عملیات</label>
+    <select name="action" class="input">
+      <option value="">همه</option>
+      {% for value, label in actions %}
+        <option value="{{ value }}" {% if action == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field"><label>&nbsp;</label><button type="submit" class="btn">اعمال</button></div>
+</form>
+
+<div class="card">
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>زمان</th><th>کاربر</th><th>عملیات</th><th>شرح</th><th>آی‌پی</th></tr></thead>
+        <tbody>
+          {% for row in page %}
+            <tr>
+              <td class="muted">{{ row.created_at|jalali_dt }}</td>
+              <td>{{ row.username_snapshot|default:"—" }}</td>
+              <td><span class="badge badge-neutral">{{ row.get_action_display }}</span></td>
+              <td class="wrap">{{ row.summary }}</td>
+              <td class="muted" dir="ltr" style="text-align:start">{{ row.ip_address|default:"—" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">رکوردی پیدا نشد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if page.paginator.num_pages > 1 %}
+<div class="pagination">
+  {% if page.has_previous %}<a href="{% query_string page=page.previous_page_number %}">قبلی</a>{% endif %}
+  <span class="current">{{ page.number|fa }} از {{ page.paginator.num_pages|fa }}</span>
+  {% if page.has_next %}<a href="{% query_string page=page.next_page_number %}">بعدی</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}
