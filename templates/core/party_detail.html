@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}{{ party.name }} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ party.name }}</h1>
+    <p>{{ party.kind_label }}{% if party.currency %} · {{ party.currency.name }}{% endif %}
+      {% if not party.is_active %}<span class="badge badge-neutral">غیرفعال</span>{% endif %}</p>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'ledger:statement_detail' party.pk %}" class="btn">صورتحساب کامل</a>
+    {% if 'party.manage' in MY_PERMS %}
+      <a href="{% url 'core:party_edit' party.pk %}" class="btn btn-secondary">ویرایش</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-head"><h2>مانده فعلی</h2></div>
+    <div class="card-body tight">
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>ارز</th><th>مانده</th><th>ارزش به {{ BASE_UNIT }}</th></tr></thead>
+          <tbody>
+            {% for row in balance.rows %}
+              <tr>
+                <td>{{ row.currency|unit_label }}</td>
+                <td class="num">{% money_cell row.amount row.currency %}</td>
+                <td class="num">{% if row.base_value is not None %}{% plain_money row.base_value None %}{% else %}<span class="muted">نرخ ندارد</span>{% endif %}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="3" class="empty">مانده‌ای ندارد.</td></tr>
+            {% endfor %}
+          </tbody>
+          {% if balance.rows %}
+          <tfoot><tr><td colspan="2">جمع کل</td><td class="num">{% plain_money balance.total_base None %}</td></tr></tfoot>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>اطلاعات</h2></div>
+    <div class="card-body">
+      <dl class="kv">
+        <dt>کد حساب</dt><dd>{{ party.code|default:"—" }}</dd>
+        <dt>شماره تماس</dt><dd dir="ltr" style="text-align:start">{{ party.phone|default:"—" }}</dd>
+        <dt>کد ملی</dt><dd dir="ltr" style="text-align:start">{{ party.national_id|default:"—" }}</dd>
+        <dt>تلگرام</dt><dd dir="ltr" style="text-align:start">{{ party.telegram_id|default:"ثبت نشده" }}</dd>
+        <dt>واتس‌اپ</dt><dd dir="ltr" style="text-align:start">{{ party.whatsapp_no|default:"ثبت نشده" }}</dd>
+        <dt>توضیحات</dt><dd>{{ party.note|default:"—" }}</dd>
+      </dl>
+      {% if not party.telegram_id and not party.whatsapp_no and party.kind == 'customer' %}
+        <div class="notice" style="margin-top:12px; font-size:12px">
+          برای اینکه در مرحله ۴ ربات به این مشتری پاسخ بدهد، شناسه تلگرام یا شماره واتس‌اپش باید اینجا ثبت شود.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>۲۵ سطر آخر</h2></div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>تاریخ</th><th>سند</th><th>ارز</th><th>مبلغ</th><th>شرح</th></tr></thead>
+        <tbody>
+          {% for entry in recent %}
+            <tr>
+              <td>{{ entry.date|jalali }}</td>
+              <td>{% if 'voucher.view' in MY_PERMS %}<a href="{% url 'ledger:voucher_detail' entry.voucher.pk %}">{{ entry.voucher.number|fa }}</a>{% else %}{{ entry.voucher.number|fa }}{% endif %}</td>
+              <td>{{ entry.currency|unit_label }}</td>
+              <td class="num">{% plain_money entry.amount entry.currency %}</td>
+              <td class="wrap muted">{{ entry.voucher.description|truncatechars:60 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="empty">هنوز تراکنشی ندارد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

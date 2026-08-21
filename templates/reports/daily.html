@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}خرید و فروش روزانه — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>گزارش خرید و فروش روزانه</h1>
+    <p>{{ range_label }}</p>
+  </div>
+</div>
+
+{% include "reports/_range_filter.html" %}
+
+<div class="grid grid-3" style="margin-bottom:18px">
+  <div class="stat">
+    <div class="stat-label">تعداد معاملات</div>
+    <div class="stat-value">{{ totals.count|fa }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">جمع خرید</div>
+    <div class="stat-value">{{ totals.buy|base_amount }}</div>
+    <div class="stat-sub">{{ BASE_UNIT }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">جمع فروش</div>
+    <div class="stat-value">{{ totals.sell|base_amount }}</div>
+    <div class="stat-sub">{{ BASE_UNIT }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>خلاصه به تفکیک روز و ارز</h2>
+    <span class="hint">میانگین نرخ = مبلغ کل ÷ تعداد ارز</span>
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>تاریخ</th><th>ارز</th><th>نوع</th><th>تعداد ارز</th>
+              <th>مبلغ کل ({{ BASE_UNIT }})</th><th>میانگین نرخ</th><th>تعداد معامله</th></tr>
+        </thead>
+        <tbody>
+          {% for row in summary %}
+            <tr>
+              <td>{{ row.date|jalali }}</td>
+              <td>{{ row.currency.name }}</td>
+              <td>
+                {% if row.side == 'buy' %}<span class="badge badge-buy">خرید</span>
+                {% else %}<span class="badge badge-sell">فروش</span>{% endif %}
+              </td>
+              <td class="num">{{ row.quantity|amount:row.currency.decimal_places }}</td>
+              <td class="num">{{ row.total|base_amount }}</td>
+              <td class="num">{{ row.avg_price|base_amount }}</td>
+              <td class="num">{{ row.count|fa }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="empty">در این بازه معامله‌ای ثبت نشده است.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>ریز معاملات</h2><span class="hint">حداکثر ۲۰۰ سطر — برای همه، خروجی اکسل بگیرید</span></div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>تاریخ</th><th>سند</th><th>نوع</th><th>طرف معامله</th><th>ارز</th>
+                   <th>تعداد</th><th>نرخ</th><th>مبلغ کل</th></tr></thead>
+        <tbody>
+          {% for deal in deals %}
+            <tr {% if deal.voucher.status == 'void' %}style="opacity:.5"{% endif %}>
+              <td>{{ deal.date|jalali }}</td>
+              <td>{% if 'voucher.view' in MY_PERMS %}<a href="{% url 'ledger:voucher_detail' deal.voucher.pk %}">{{ deal.voucher.number|fa }}</a>{% else %}{{ deal.voucher.number|fa }}{% endif %}</td>
+              <td>{% if deal.side == 'buy' %}<span class="badge badge-buy">خرید</span>{% else %}<span class="badge badge-sell">فروش</span>{% endif %}</td>
+              <td>{{ deal.counterparty.name }}</td>
+              <td>{{ deal.currency.name }}</td>
+              <td class="num">{{ deal.quantity|amount:deal.currency.decimal_places }}</td>
+              <td class="num">{{ deal.unit_price|base_amount }}</td>
+              <td class="num">{{ deal.total_base|base_amount }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="8" class="empty">معامله‌ای نیست.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

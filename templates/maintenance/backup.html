@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}پشتیبان‌گیری — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>پشتیبان‌گیری از اطلاعات</h1>
+    <p>در هر بار باز شدن برنامه، یک نسخه پشتیبان خودکار گرفته می‌شود. هر وقت هم خواستید می‌توانید دستی بگیرید.</p>
+  </div>
+  <div class="page-actions">
+    <form method="post" action="{% url 'maintenance:backup_create' %}" class="inline">
+      {% csrf_token %}
+      <button type="submit" class="btn">ساخت نسخه پشتیبان</button>
+    </form>
+    <a href="{% url 'maintenance:backup_download' %}" class="btn btn-secondary">دانلود فایل پشتیبان</a>
+  </div>
+</div>
+
+<div class="box-notice notice" style="margin-bottom:18px">
+  <strong>اطلاعات شما کجا ذخیره می‌شود؟</strong>
+  <div style="margin-top:6px; direction:ltr; text-align:left; font-family:Consolas,monospace; font-size:12px">
+    {{ data_dir }}
+  </div>
+  <p style="margin:8px 0 0">
+    این پوشه جدا از خود برنامه است. یعنی اگر پوشه برنامه را جابه‌جا کنید یا نسخه
+    جدید را جایگزین کنید، اطلاعاتتان سر جایش می‌ماند.
+  </p>
+</div>
+
+<div class="notice warn" style="margin-bottom:18px">
+  <strong>یک توصیه مهم:</strong>
+  هفته‌ای یک بار دکمه «دانلود فایل پشتیبان» را بزنید و فایل را روی فلش یا فضای
+  ابری نگه دارید. نسخه‌های داخل کامپیوتر اگر هارد خراب شود از بین می‌روند.
+</div>
+
+<div class="grid grid-3" style="margin-bottom:18px">
+  <div class="stat">
+    <div class="stat-label">تعداد نسخه‌های پشتیبان</div>
+    <div class="stat-value">{{ backup_count|fa }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">حجم کل</div>
+    <div class="stat-value">{{ total_size|filesizeformat }}</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">پشتیبان‌گیری خودکار</div>
+    <div class="stat-value" style="font-size:15px"><span class="badge badge-final">فعال</span></div>
+    <div class="stat-sub">در هر بار باز شدن برنامه</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>نسخه‌های موجود</h2>
+    <span class="hint">۱۰ نسخه خودکار آخر نگه داشته می‌شود؛ نسخه‌های دستی هیچ‌وقت پاک نمی‌شوند</span>
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>نام فایل</th><th>تاریخ و ساعت</th><th>حجم</th><th></th></tr></thead>
+        <tbody>
+          {% for item in backups %}
+            <tr>
+              <td dir="ltr" style="text-align:start; font-family:Consolas,monospace; font-size:11.5px">{{ item.name }}</td>
+              <td>{{ item.created_at|jalali_dt }}</td>
+              <td class="num">{{ item.size|filesizeformat }}</td>
+              <td>
+                <form method="post" action="{% url 'maintenance:backup_restore' %}" class="inline"
+                      onsubmit="return confirm('اطلاعات فعلی با این نسخه جایگزین می‌شود. مطمئنید؟');">
+                  {% csrf_token %}
+                  <input type="hidden" name="name" value="{{ item.name }}">
+                  <button type="submit" class="btn btn-secondary btn-sm">بازگردانی</button>
+                </form>
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">
+              <strong>هنوز نسخه پشتیبانی ساخته نشده است.</strong>
+              دکمه «ساخت نسخه پشتیبان» بالای صفحه را بزنید.
+            </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if 'data.reset' in MY_PERMS %}
+<div class="card" style="border-color:#fecaca">
+  <div class="card-head" style="background:#fef2f2">
+    <h2 style="color:#991b1b">پاک کردن کل اسناد</h2>
+  </div>
+  <div class="card-body">
+    <p style="margin:0 0 12px; font-size:13px">
+      اگر می‌خواهید داده‌های آزمایشی را پاک کنید و از اول شروع کنید، از این بخش
+      استفاده کنید. قبل از پاک شدن، یک نسخه پشتیبان کامل گرفته می‌شود.
+    </p>
+    <a href="{% url 'maintenance:data_reset' %}" class="btn btn-danger">رفتن به صفحه پاک‌سازی</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

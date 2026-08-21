@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}صورتحساب{% if party %} {{ party.name }}{% endif %} — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>صورتحساب {% if party %}{{ party.name }}{% else %}مشتری{% endif %}</h1>
+    <p>مانده هیچ‌جا ذخیره نشده؛ همین الان از جمع سطرها حساب می‌شود. پس امکان ندارد با گردش حساب اختلاف داشته باشد.</p>
+  </div>
+  {% if party %}
+  <div class="page-actions">
+    <button onclick="window.print()" class="btn btn-secondary">چاپ</button>
+    <a href="{% url 'reports:statement_export' party.pk %}?{{ request.GET.urlencode }}" class="btn btn-secondary">خروجی اکسل</a>
+    <a href="{% url 'reports:statement_pdf' party.pk %}?{{ request.GET.urlencode }}" class="btn btn-secondary">خروجی PDF</a>
+  </div>
+  {% endif %}
+</div>
+
+<form method="get" class="filter-bar" {% if party %}action="{% url 'ledger:statement_detail' party.pk %}"{% endif %}>
+  <div class="field" style="min-width:220px">
+    <label>طرف حساب</label>
+    <select class="input" name="party_select"
+            onchange="if(this.value) window.location='/statement/'+this.value+'/';">
+      <option value="">— انتخاب کنید —</option>
+      {% for p in parties %}
+        <option value="{{ p.pk }}" {% if party and p.pk == party.pk %}selected{% endif %}>{{ p.name }} ({{ p.kind_label }})</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% if party %}
+  <div class="field">
+    <label>از تاریخ</label>
+    <input type="text" name="from" value="{{ date_from }}" class="input date-input" dir="ltr" placeholder="۱۴۰۵/۰۵/۰۱">
+  </div>
+  <div class="field">
+    <label>تا تاریخ</label>
+    <input type="text" name="to" value="{{ date_to }}" class="input date-input" dir="ltr" placeholder="۱۴۰۵/۰۵/۳۱">
+  </div>
+  <div class="field">
+    <label>ارز</label>
+    <select name="currency" class="input">
+      <option value="">همه ارزها</option>
+      {% for c in currencies %}
+        <option value="{{ c.pk }}" {% if selected_currency and c.pk == selected_currency.pk %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field"><label>&nbsp;</label><button type="submit" class="btn">اعمال</button></div>
+  {% endif %}
+</form>
+
+{% if not party %}
+  <div class="card"><div class="card-body empty">
+    <strong>یک طرف حساب انتخاب کنید.</strong>
+    صورتحساب کامل با مانده تجمعی سطر به سطر نمایش داده می‌شود.
+  </div></div>
+{% else %}
+
+<div class="card">
+  <div class="card-head">
+    <h2>مانده فعلی — {{ party.name }}</h2>
+    <span class="hint">قرمز: بدهکار · سبز: بستانکار</span>
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>ارز</th><th>مانده</th><th>نرخ روز</th><th>ارزش به {{ BASE_UNIT }}</th></tr></thead>
+        <tbody>
+          {% for row in balance.rows %}
+            <tr>
+              <td>{{ row.currency|unit_label }}</td>
+              <td class="num">{% money_cell row.amount row.currency %}</td>
+              <td class="num muted">{% if row.currency.is_base %}—{% elif row.rate %}{{ row.rate|base_amount }}{% else %}<span class="badge badge-neutral">نرخ ندارد</span>{% endif %}</td>
+              <td class="num">{% if row.base_value is not None %}{% plain_money row.base_value None %}{% else %}<span class="muted">—</span>{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">این طرف حساب مانده‌ای ندارد.</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if balance.rows %}
+        <tfoot>
+          <tr>
+            <td colspan="3">جمع کل به {{ BASE_UNIT }}</td>
+            <td class="num">{% plain_money balance.total_base None %}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+    {% if balance.missing_rates %}
+      <div class="notice warn" style="margin:12px">
+        برای این ارزها نرخی ثبت نشده و در جمع کل نیامده‌اند:
+        {% for c in balance.missing_rates %}<span class="chip">{{ c.name }}</span>{% endfor %}
+        <a href="{% url 'core:rate_dashboard' %}">ثبت نرخ ←</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>گردش حساب</h2>
+    <span class="hint">جدیدترین سند بالا · {{ data.rows|length|fa }} سطر · مانده تجمعی برای هر ارز جداگانه محاسبه می‌شود</span>
+  </div>
+  <div class="card-body tight">
+    {% if data.opening %}
+      <div style="padding:10px 16px; background:var(--surface-2); border-bottom:1px solid var(--border); font-size:12.5px">
+        <strong>مانده ابتدای دوره:</strong>
+        {% for currency, amount in data.opening.items %}
+          <span class="chip">{{ currency|unit_label }}: {% plain_money amount currency %}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr><th>تاریخ</th><th>سند</th><th>ارز</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th><th>شرح</th></tr>
+        </thead>
+        <tbody>
+          {% for row in data.rows %}
+            <tr {% if row.entry.voucher.status == 'void' %}style="opacity:.5"{% endif %}>
+              <td>{{ row.entry.date|jalali }}</td>
+              <td>
+                {% if 'voucher.view' in MY_PERMS %}
+                  <a href="{% url 'ledger:voucher_detail' row.entry.voucher.pk %}">{{ row.entry.voucher.number|fa }}</a>
+                {% else %}{{ row.entry.voucher.number|fa }}{% endif %}
+              </td>
+              <td>{{ row.entry.currency|unit_label }}</td>
+              <td class="num">{% if row.entry.amount > 0 %}<span class="amount debit">{% if row.entry.currency.is_base %}{{ row.entry.amount|base_amount }}{% else %}{{ row.entry.amount|amount:row.entry.currency.decimal_places }}{% endif %}</span>{% else %}—{% endif %}</td>
+              <td class="num">{% if row.entry.amount < 0 %}<span class="amount credit">{% if row.entry.currency.is_base %}{{ row.entry.credit|base_amount }}{% else %}{{ row.entry.credit|amount:row.entry.currency.decimal_places }}{% endif %}</span>{% else %}—{% endif %}</td>
+              <td class="num">{% money_cell row.running row.entry.currency %}</td>
+              <td class="wrap muted">{{ row.entry.voucher.description|truncatechars:70 }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="empty">در این بازه سندی ثبت نشده است.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if data.closing %}
+      <div style="padding:10px 16px; background:var(--surface-2); border-top:1px solid var(--border); font-size:12.5px">
+        <strong>مانده پایان دوره:</strong>
+        {% for currency, amount in data.closing.items %}
+          <span class="chip">{{ currency|unit_label }}: {% plain_money amount currency %}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}

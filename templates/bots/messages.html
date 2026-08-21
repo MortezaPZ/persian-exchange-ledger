@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}پیام‌های ربات — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>تاریخچه پیام‌های ربات</h1>
+    <p>اگر مشتری گفت «من پرسیدم و جواب ندادید»، سابقه‌اش اینجاست.</p>
+  </div>
+</div>
+
+<form method="get" class="filter-bar">
+  <div class="field" style="min-width:220px">
+    <label>جستجو</label>
+    <input type="text" name="q" value="{{ q }}" class="input" placeholder="متن پیام، شماره یا نام مشتری">
+  </div>
+  <div class="field">
+    <label>پیام‌رسان</label>
+    <select name="platform" class="input">
+      <option value="">همه</option>
+      {% for value, label in platforms %}
+        <option value="{{ value }}" {% if platform == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field">
+    <label>وضعیت</label>
+    <select name="status" class="input">
+      <option value="">همه</option>
+      {% for value, label in statuses %}
+        <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field"><label>&nbsp;</label><button type="submit" class="btn">اعمال</button></div>
+</form>
+
+<div class="card">
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>زمان</th><th>پیام‌رسان</th><th>جهت</th><th>مشتری</th><th>فرستنده</th><th>متن</th><th>وضعیت</th></tr></thead>
+        <tbody>
+          {% for message in page %}
+            <tr>
+              <td class="muted">{{ message.created_at|jalali_dt }}</td>
+              <td>{{ message.get_platform_display }}</td>
+              <td>{{ message.get_direction_display }}</td>
+              <td>{% if message.party %}<a href="{% url 'ledger:statement_detail' message.party.pk %}">{{ message.party.name }}</a>{% else %}—{% endif %}</td>
+              <td class="muted" dir="ltr" style="text-align:start">{{ message.sender_id|default:"—" }}</td>
+              <td class="wrap muted">{{ message.text|truncatechars:90 }}</td>
+              <td>
+                {% if message.status == 'ok' %}<span class="badge badge-final">موفق</span>
+                {% elif message.status == 'unknown' %}<span class="badge badge-draft">ناشناس</span>
+                {% elif message.status == 'failed' %}<span class="badge badge-void" title="{{ message.error }}">خطا</span>
+                {% else %}<span class="badge badge-neutral">{{ message.get_status_display }}</span>{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="7" class="empty">پیامی پیدا نشد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if page.paginator.num_pages > 1 %}
+<div class="pagination">
+  {% if page.has_previous %}<a href="{% query_string page=page.previous_page_number %}">قبلی</a>{% endif %}
+  <span class="current">{{ page.number|fa }} از {{ page.paginator.num_pages|fa }}</span>
+  {% if page.has_next %}<a href="{% query_string page=page.next_page_number %}">بعدی</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

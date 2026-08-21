@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load sarrafi %}
+{% block title %}تراز کل — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>گزارش تراز کل</h1>
+    <p>{{ range_label }}</p>
+  </div>
+</div>
+
+{% include "reports/_range_filter.html" %}
+
+{% if health %}
+  <div class="notice danger" style="margin-bottom:16px">
+    <strong>هشدار:</strong> جمع کل این ارزها روی همه حساب‌ها صفر نیست — یعنی جایی ایراد دارد.
+    {% for row in health %}<span class="chip">{{ row.currency|unit_label }}: {% plain_money row.total row.currency %}</span>{% endfor %}
+  </div>
+{% else %}
+  <div class="notice" style="margin-bottom:16px; background:var(--success-light); color:#14532d; border-color:#bbf7d0">
+    <strong>آزمون سلامت گذشت.</strong> جمع کل هر ارز روی تمام حساب‌ها دقیقاً صفر است —
+    یعنی هیچ ریالی در سیستم گم یا از هوا پیدا نشده.
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-head">
+    <h2>جمع بدهکار و بستانکار هر ارز</h2>
+    <span class="hint">این دو ستون باید همیشه با هم برابر باشند</span>
+  </div>
+  <div class="card-body tight">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>ارز</th><th>جمع بدهکار</th><th>جمع بستانکار</th><th>اختلاف</th></tr></thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td><strong>{{ row.currency|unit_label }}</strong></td>
+              <td class="num"><span class="amount debit">{% if row.currency.is_base %}{{ row.debit|base_amount }}{% else %}{{ row.debit|amount:row.currency.decimal_places }}{% endif %}</span></td>
+              <td class="num"><span class="amount credit">{% if row.currency.is_base %}{{ row.credit|base_amount }}{% else %}{{ row.credit|amount:row.currency.decimal_places }}{% endif %}</span></td>
+              <td class="num">
+                {% if row.diff == 0 %}<span class="badge badge-final">تراز</span>
+                {% else %}<span class="amount debit">{{ row.diff|amount:2 }}</span>{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="empty">در این بازه سندی ثبت نشده است.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
