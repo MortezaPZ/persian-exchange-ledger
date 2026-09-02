@@ -20,5 +20,3 @@ dist/
 
 # کلید تولیدشده محلی و فایل‌های آماده‌سازی انتشار
 secret.key
-CURSOR_TASK.md
-.claude/
