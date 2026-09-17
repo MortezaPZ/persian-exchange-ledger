@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/topbar-balances/", views.topbar_balances, name="topbar_balances"),
 
     path("deal/new/", views.deal_create, name="deal_create"),
+    path("deal/<int:pk>/settlement/", views.deal_settlement_add, name="deal_settlement_add"),
     path("cash/<str:kind>/new/", views.cash_create, name="cash_create"),
     path("transfer/new/", views.transfer_create, name="transfer_create"),
     path("party-transfer/new/", views.party_transfer_create, name="party_transfer_create"),
@@ -18,6 +19,7 @@ urlpatterns = [
 
     path("vouchers/", views.voucher_list, name="voucher_list"),
     path("vouchers/<int:pk>/", views.voucher_detail, name="voucher_detail"),
+    path("vouchers/<int:pk>/attachments/<int:attachment_pk>/delete/", views.voucher_attachment_delete, name="voucher_attachment_delete"),
     path("vouchers/<int:pk>/void/", views.voucher_void, name="voucher_void"),
     path("vouchers/<int:pk>/delete/", views.voucher_delete, name="voucher_delete"),
     path("vouchers/<int:pk>/edit/", views.voucher_edit, name="voucher_edit"),

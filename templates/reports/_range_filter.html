@@ -8,7 +8,26 @@
     <label>تا تاریخ</label>
     <input type="text" name="to" value="{{ date_to }}" class="input date-input" dir="ltr" placeholder="۱۴۰۵/۰۵/۳۱">
   </div>
-  <div class="field"><label>&nbsp;</label><button type="submit" class="btn">اعمال بازه</button></div>
+  {% if currencies %}
+  <div class="field">
+    <label for="report-currency">نوع ارز</label>
+    <select name="currency" id="report-currency" class="input">
+      <option value="">همه ارزها</option>
+      {% for currency in currencies %}<option value="{{ currency.pk }}" {% if selected_currency == currency.pk|stringformat:"s" %}selected{% endif %}>{{ currency.name }}</option>{% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  {% if show_side_filter %}
+  <div class="field">
+    <label for="report-side">نوع معامله</label>
+    <select name="side" id="report-side" class="input">
+      <option value="">خرید و فروش</option>
+      <option value="buy" {% if selected_side == 'buy' %}selected{% endif %}>خرید</option>
+      <option value="sell" {% if selected_side == 'sell' %}selected{% endif %}>فروش</option>
+    </select>
+  </div>
+  {% endif %}
+  <div class="field"><label>&nbsp;</label><button type="submit" class="btn">اعمال فیلترها</button></div>
   <div class="field">
     <label>&nbsp;</label>
     <a href="{% querystring_export 'xlsx' %}" class="btn btn-secondary">خروجی اکسل</a>

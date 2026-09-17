@@ -55,6 +55,12 @@ def data_dir():
     پس داده‌ها همیشه در پوشه ثابت کاربر می‌نشیند و مسیرش در خود برنامه
     (صفحه پشتیبان‌گیری) نشان داده می‌شود.
     """
+    explicit = os.environ.get("SARRAFI_DATA_DIR")
+    if explicit:
+        path = Path(explicit).expanduser().resolve()
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
     if not is_frozen():
         path = Path(__file__).resolve().parent / "desktop-data"
         path.mkdir(parents=True, exist_ok=True)

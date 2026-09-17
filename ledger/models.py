@@ -182,6 +182,89 @@ class Deal(models.Model):
     def __str__(self):
         return f"{self.get_side_display()} {self.quantity} {self.currency.code}"
 
+    @property
+    def settled_amount(self):
+        return self.settlements.filter(payment__status=Voucher.Status.FINAL).aggregate(
+            total=models.Sum("amount")
+        )["total"] or Decimal("0")
+
+    @property
+    def delivery_obligation(self):
+        """Signed customer currency leg; no customer leg means upfront delivery."""
+        return Entry.objects.filter(
+            voucher_id=self.voucher_id, party_id=self.counterparty_id, currency_id=self.currency_id,
+        ).aggregate(total=models.Sum("amount"))["total"] or Decimal("0")
+
+    @property
+    def delivered_quantity(self):
+        allocated = self.deliveries.filter(payment__status=Voucher.Status.FINAL).aggregate(
+            total=models.Sum("quantity")
+        )["total"] or Decimal("0")
+        upfront = max(Decimal("0"), self.quantity - abs(self.delivery_obligation))
+        return upfront + allocated
+
+    @property
+    def remaining_delivery_quantity(self):
+        return max(Decimal("0"), self.quantity - self.delivered_quantity)
+
+    @property
+    def remaining_amount(self):
+        return max(Decimal("0"), self.total_base - self.settled_amount)
+
+    @property
+    def settlement_percent(self):
+        return min(Decimal("100"), self.settled_amount * 100 / self.total_base) if self.total_base else Decimal("0")
+
+
+class InvoiceDelivery(models.Model):
+    """تحویل در واحد ارز معامله؛ مستقل از تسویه مالی ارز پایه."""
+
+    deal = models.ForeignKey(Deal, on_delete=models.CASCADE, related_name="deliveries", verbose_name="فاکتور")
+    payment = models.ForeignKey(Voucher, on_delete=models.PROTECT, related_name="invoice_deliveries", verbose_name="سند تحویل")
+    quantity = models.DecimalField("مقدار تحویل", max_digits=28, decimal_places=8,
+                                   validators=[MinValueValidator(Decimal("0.00000001"))])
+    note = models.CharField("توضیحات", max_length=255, blank=True)
+    created_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT,
+                                   related_name="deliveries_created", verbose_name="ثبت‌کننده")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "تخصیص تحویل ارز"
+        verbose_name_plural = "تخصیص‌های تحویل ارز"
+        constraints = [
+            models.UniqueConstraint(fields=["deal", "payment"], name="unique_deal_payment_delivery"),
+            models.CheckConstraint(condition=models.Q(quantity__gt=0), name="delivery_quantity_positive"),
+        ]
+
+
+class InvoiceSettlement(models.Model):
+    """تخصیص بخشی از یک سند دریافت/پرداخت به یک معامله."""
+    deal = models.ForeignKey(Deal, on_delete=models.CASCADE, related_name="settlements", verbose_name="فاکتور")
+    payment = models.ForeignKey(Voucher, on_delete=models.PROTECT, related_name="invoice_settlements", verbose_name="سند مالی")
+    amount = models.DecimalField("مبلغ تخصیص", max_digits=28, decimal_places=8,
+                                 validators=[MinValueValidator(Decimal("0.00000001"))])
+    note = models.CharField("توضیحات", max_length=255, blank=True)
+    created_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="settlements_created", verbose_name="ثبت‌کننده")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "تخصیص تسویه"
+        verbose_name_plural = "تخصیص‌های تسویه"
+        constraints = [models.UniqueConstraint(fields=["deal", "payment"], name="unique_deal_payment_settlement")]
+        indexes = [models.Index(fields=["deal", "payment"], name="ledger_invo_deal_id_6d9f0c_idx")]
+
+
+class VoucherAttachment(models.Model):
+    voucher = models.ForeignKey(Voucher, on_delete=models.CASCADE, related_name="attachments", verbose_name="سند")
+    file = models.FileField("فایل پیوست", upload_to="payment_receipts/%Y/%m/")
+    title = models.CharField("عنوان", max_length=255, blank=True)
+    uploaded_by = models.ForeignKey("accounts.User", on_delete=models.PROTECT, related_name="voucher_attachments", verbose_name="بارگذاری‌کننده")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "پیوست سند"
+        verbose_name_plural = "پیوست‌های سند"
+
 
 class InventoryPosition(models.Model):
     """موجودی و میانگین بهای تمام‌شده هر ارز نزد صرافی.

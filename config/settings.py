@@ -5,7 +5,10 @@ import os
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")
+# Server environments live outside releases; desktop keeps the legacy default.
+# An explicit path also lets isolated checks avoid reading the real .env.
+load_dotenv(Path(os.environ.get("SARRAFI_ENV_FILE", str(BASE_DIR / ".env"))))
+
 
 
 def env(key, default=""):
@@ -146,6 +149,13 @@ LANGUAGE_CODE = "fa"
 TIME_ZONE = env("TIME_ZONE", "Asia/Tehran")
 USE_I18N = True
 USE_TZ = True
+
+# Private uploads survive release replacements. MEDIA_URL is intentionally not
+# routed by Django or nginx; use receipt_download instead of FileField.url.
+MEDIA_ROOT = Path(env("SARRAFI_MEDIA_ROOT", str(DATA_DIR / "media")))
+MEDIA_URL = "/media/"
+FILE_UPLOAD_PERMISSIONS = 0o600
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o700
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
