@@ -1,0 +1,25 @@
+[Unit]
+Description=Sarrafi private WSGI application
+After=network.target
+
+[Service]
+Type=simple
+User=sarrafi
+Group=sarrafi
+WorkingDirectory=/srv/sarrafi/current
+Environment=SARRAFI_ENV_FILE=/etc/sarrafi/sarrafi.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=/etc/sarrafi/sarrafi.env
+ExecStart=/srv/sarrafi/current/.venv/bin/waitress-serve --listen=127.0.0.1:8000 --threads=4 --trusted-proxy=127.0.0.1 --trusted-proxy-headers=x-forwarded-proto config.wsgi:application
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=60
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/sarrafi
+
+[Install]
+WantedBy=multi-user.target

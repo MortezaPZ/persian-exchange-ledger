@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.db.models import Count, Sum
+from django.core.exceptions import BadRequest
 from django.shortcuts import get_object_or_404, render
 
 from accounts import services as audit
@@ -46,6 +47,25 @@ def _range_from_request(request, default_from=None, default_to=None):
     return date_from, date_to
 
 
+def _currency_filter(request):
+    raw = (request.GET.get("currency") or "").strip()
+    if not raw:
+        return None
+    if not raw.isdecimal() or len(raw) > 18:
+        raise BadRequest("نوع ارز نامعتبر است؛ فیلتر را دوباره انتخاب کنید.")
+    pk = int(raw)
+    if not Currency.objects.filter(pk=pk).exists():
+        raise BadRequest("ارز انتخاب‌شده وجود ندارد.")
+    return pk
+
+
+def _side_filter(request):
+    side = (request.GET.get("side") or "").strip()
+    if side and side not in Deal.Side.values:
+        raise BadRequest("نوع معامله نامعتبر است؛ خرید یا فروش را انتخاب کنید.")
+    return side
+
+
 def _range_label(date_from, date_to):
     return f"از {fmt_date(date_from)} تا {fmt_date(date_to)}"
 
@@ -53,13 +73,18 @@ def _range_label(date_from, date_to):
 # --------------------------------------------------------------------------
 # گزارش خرید و فروش روزانه
 # --------------------------------------------------------------------------
-def _daily_data(date_from, date_to):
+def _daily_data(date_from, date_to, side=None, currency=None):
     deals = (
         Deal.objects.filter(date__gte=date_from, date__lte=date_to)
         .exclude(voucher__status=Voucher.Status.DRAFT)
         .select_related("currency", "counterparty", "voucher")
         .order_by("date", "id")
     )
+
+    if side in Deal.Side.values:
+        deals = deals.filter(side=side)
+    if currency is not None:
+        deals = deals.filter(currency=currency)
 
     per_day = {}
     for deal in deals:
@@ -90,7 +115,8 @@ def _daily_data(date_from, date_to):
 @require_perm(Perm.REPORT_DAILY)
 def daily(request):
     date_from, date_to = _range_from_request(request)
-    deals, summary, totals = _daily_data(date_from, date_to)
+    currency = _currency_filter(request)
+    deals, summary, totals = _daily_data(date_from, date_to, side=_side_filter(request), currency=currency)
 
     if request.GET.get("export") in {"xlsx", "pdf"}:
         headers = ["تاریخ", "ارز", "نوع", "تعداد", f"مبلغ کل ({base_unit_label()})",
@@ -114,6 +140,8 @@ def daily(request):
 
     return render(request, "reports/daily.html", {
         "summary": summary, "deals": deals[:200], "totals": totals,
+        "currencies": Currency.objects.all(), "selected_currency": str(currency or ""),
+        "show_side_filter": True, "selected_side": request.GET.get("side", ""),
         "date_from": request.GET.get("from", fmt_date(date_from)),
         "date_to": request.GET.get("to", fmt_date(date_to)),
         "range_label": _range_label(date_from, date_to),
@@ -123,7 +151,7 @@ def daily(request):
 # --------------------------------------------------------------------------
 # گزارش سود و زیان روزانه خرید و فروش
 # --------------------------------------------------------------------------
-def _daily_profit_data(date_from, date_to):
+def _daily_profit_data(date_from, date_to, currency=None):
     """سود و زیان هر روز از معاملات خرید و فروش.
 
     سود فقط در لحظه فروش «تحقق» پیدا می‌کند: تفاوت نرخ فروش با میانگین بهای
@@ -137,6 +165,8 @@ def _daily_profit_data(date_from, date_to):
         .select_related("currency")
         .order_by("date")
     )
+    if currency is not None:
+        deals = deals.filter(currency=currency)
 
     per_day = {}
     for deal in deals:
@@ -182,7 +212,8 @@ def _daily_profit_data(date_from, date_to):
 @require_perm(Perm.REPORT_PROFIT)
 def daily_profit(request):
     date_from, date_to = _range_from_request(request)
-    rows, totals = _daily_profit_data(date_from, date_to)
+    currency = _currency_filter(request)
+    rows, totals = _daily_profit_data(date_from, date_to, currency=currency)
     unit = base_unit_label()
 
     if request.GET.get("export") in {"xlsx", "pdf"}:
@@ -209,6 +240,7 @@ def daily_profit(request):
 
     return render(request, "reports/daily_profit.html", {
         "rows": rows, "totals": totals,
+        "currencies": Currency.objects.all(), "selected_currency": str(currency or ""),
         "date_from": request.GET.get("from", fmt_date(date_from)),
         "date_to": request.GET.get("to", fmt_date(date_to)),
         "range_label": _range_label(date_from, date_to),
@@ -218,7 +250,7 @@ def daily_profit(request):
 # --------------------------------------------------------------------------
 # گزارش سود و زیان تسعیر
 # --------------------------------------------------------------------------
-def _profit_data(date_from, date_to):
+def _profit_data(date_from, date_to, currency=None):
     """سود تحقق‌یافته (از معاملات) و سود تسعیر (از موجودی باقی‌مانده)."""
     deals = (
         Deal.objects.filter(date__gte=date_from, date__lte=date_to,
@@ -226,6 +258,9 @@ def _profit_data(date_from, date_to):
         .exclude(voucher__status=Voucher.Status.DRAFT)
         .select_related("currency")
     )
+
+    if currency is not None:
+        deals = deals.filter(currency=currency)
 
     realized = {}
     for row in deals.values("currency").annotate(
@@ -236,6 +271,8 @@ def _profit_data(date_from, date_to):
 
     rate_map = latest_rate_map()
     positions = InventoryPosition.objects.select_related("currency").exclude(quantity=0)
+    if currency is not None:
+        positions = positions.filter(currency=currency)
 
     rows = []
     currencies = {c.id: c for c in Currency.objects.all()}
@@ -278,7 +315,8 @@ def _profit_data(date_from, date_to):
 @require_perm(Perm.REPORT_PROFIT)
 def profit(request):
     date_from, date_to = _range_from_request(request)
-    rows, totals, missing = _profit_data(date_from, date_to)
+    currency = _currency_filter(request)
+    rows, totals, missing = _profit_data(date_from, date_to, currency=currency)
     unit = base_unit_label()
 
     if request.GET.get("export") in {"xlsx", "pdf"}:
@@ -307,6 +345,7 @@ def profit(request):
 
     return render(request, "reports/profit.html", {
         "rows": rows, "totals": totals, "missing": missing,
+        "currencies": Currency.objects.all(), "selected_currency": str(currency or ""),
         "date_from": request.GET.get("from", fmt_date(date_from)),
         "date_to": request.GET.get("to", fmt_date(date_to)),
         "range_label": _range_label(date_from, date_to),

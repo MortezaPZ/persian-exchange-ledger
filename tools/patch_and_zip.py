@@ -22,6 +22,8 @@ OLD_ZIP = ROOT / "حسابداری-صرافی-نسخه-جدید.zip"
 OUT_ZIP = ROOT / "جدید ترین نسخه.zip"
 
 REPLACE_MODULES = {
+    "ledger.models": SRC / "ledger" / "models.py",
+    "ledger.urls": SRC / "ledger" / "urls.py",
     "ledger.views": SRC / "ledger" / "views.py",
     "ledger.forms": SRC / "ledger" / "forms.py",
     "ledger.services": SRC / "ledger" / "services.py",
@@ -30,6 +32,7 @@ REPLACE_MODULES = {
 }
 
 TEMPLATE_FILES = [
+    "ledger/voucher_detail.html",
     "ledger/party_transfer_form.html",
     "ledger/expense_income_form.html",
     "ledger/statement.html",
@@ -154,6 +157,10 @@ def copy_templates(app_dir: Path) -> None:
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dest)
         print(f"copied template {rel}")
+    migration = app_dir / "_internal" / "ledger" / "migrations" / "0003_invoice_settlement_attachment.py"
+    migration.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(SRC / "ledger" / "migrations" / "0003_invoice_settlement_attachment.py", migration)
+    print("copied migration 0003_invoice_settlement_attachment.py")
 
 
 def main() -> None:

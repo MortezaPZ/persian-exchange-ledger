@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q, Sum
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -22,7 +23,8 @@ from core.money import to_display
 from . import balances, services
 from .forms import (CashMovementForm, DealForm, ExpenseIncomeForm, OpeningBalanceForm,
                     PartyTransferForm, TransferForm, VoidForm, VoucherFilterForm)
-from .models import Deal, Voucher
+from .models import Deal, Voucher, VoucherAttachment
+from .forms import SettlementForm, DeliveryForm
 
 ZERO = Decimal("0")
 
@@ -417,14 +419,70 @@ def voucher_list(request):
 def voucher_detail(request, pk):
     voucher = get_object_or_404(
         Voucher.objects.select_related("created_by", "reverses")
-        .prefetch_related("entries__party", "entries__currency"),
+        .prefetch_related("entries__party", "entries__currency", "deal__settlements__payment", "deal__settlements__created_by"),
         pk=pk,
     )
+    if request.method == "POST" and request.FILES.get("file"):
+        upload = request.FILES["file"]
+        if upload.name.lower().split(".")[-1] not in {"jpg", "jpeg", "png", "pdf"}:
+            messages.error(request, "فرمت مجاز: JPG، PNG یا PDF است.")
+            return redirect("ledger:voucher_detail", pk=pk)
+        VoucherAttachment.objects.create(voucher=voucher, file=upload,
+                                         title=request.POST.get("title", ""), uploaded_by=request.user)
+        messages.success(request, "فایل پیوست شد.")
+        return redirect("ledger:voucher_detail", pk=pk)
     deal = getattr(voucher, "deal", None)
     reversal = getattr(voucher, "reversed_by", None)
     return render(request, "ledger/voucher_detail.html", {
         "voucher": voucher, "deal": deal, "reversal": reversal,
+        "settlement_form": SettlementForm(deal=deal) if deal else None,
+        "delivery_form": DeliveryForm(deal=deal, auto_id="delivery_%s") if deal else None,
+        "attachments": voucher.attachments.all(),
     })
+
+
+@require_perm(Perm.VOUCHER_EDIT)
+def voucher_attachment_delete(request, pk, attachment_pk):
+    attachment = get_object_or_404(VoucherAttachment, pk=attachment_pk, voucher_id=pk)
+    attachment.file.delete(save=False)
+    attachment.delete()
+    messages.success(request, "پیوست حذف شد.")
+    return redirect("ledger:voucher_detail", pk=pk)
+
+
+@require_perm(Perm.VOUCHER_ADD)
+def deal_settlement_add(request, pk):
+    deal = get_object_or_404(Deal, pk=pk)
+    if request.method != "POST":
+        return redirect("ledger:voucher_detail", pk=deal.voucher_id)
+
+    # Lock the shared payment as well as the invoice, in one stable order.
+    # Do not validate a cached form before acquiring these locks.
+    try:
+        payment_id = int(request.POST.get("payment", ""))
+    except (TypeError, ValueError):
+        payment_id = None
+    lock_ids = {deal.voucher_id}
+    if payment_id is not None and 0 < payment_id <= 9223372036854775807:
+        lock_ids.add(payment_id)
+    with transaction.atomic():
+        list(Voucher.objects.select_for_update().filter(pk__in=lock_ids).order_by("pk"))
+        deal = get_object_or_404(Deal, pk=pk)
+        form_class = DeliveryForm if request.POST.get("allocation_kind") == "delivery" else SettlementForm
+        form = form_class(request.POST, deal=deal)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.deal, obj.created_by = deal, request.user
+            obj.save()
+            messages.success(request, "تخصیص تسویه ثبت شد.")
+
+    if form.errors:
+        # رد شدن فرم (مثلاً مبلغ بیش از مانده) نباید بی‌صدا باشد؛ وگرنه کاربر
+        # فکر می‌کند ثبت شده در حالی که فقط صفحه رفرش شده است.
+        for errors in form.errors.values():
+            for error in errors:
+                messages.error(request, error)
+    return redirect("ledger:voucher_detail", pk=deal.voucher_id)
 
 
 @require_perm(Perm.VOUCHER_VOID)

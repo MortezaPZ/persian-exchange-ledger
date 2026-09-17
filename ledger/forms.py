@@ -1,12 +1,13 @@
 from decimal import Decimal
 
 from django import forms
+from django.db.models import Sum
 
 from core.fields import (AmountField, BaseAmountField, BaseCurrencyAmountMixin,
                          CurrencyChoiceField, JalaliDateField)
 from core.models import Currency, Party
 
-from .models import Deal, Voucher
+from .models import Deal, Entry, Voucher, InvoiceSettlement, InvoiceDelivery
 
 SELECT = {"class": "input"}
 TEXTAREA = {"class": "input", "rows": 2}
@@ -176,6 +177,153 @@ class CashMovementForm(BaseCurrencyAmountMixin, forms.Form):
                 f"حساب «{account.name}» از جنس {account.currency.name} است "
                 f"و با ارز انتخابی ({currency.name}) نمی‌خواند.",
             )
+        return cleaned
+
+
+class SettlementForm(forms.ModelForm):
+    class Meta:
+        model = InvoiceSettlement
+        fields = ("payment", "amount", "note")
+        widgets = {"payment": forms.Select(attrs=SELECT), "note": forms.Textarea(attrs=TEXTAREA)}
+
+    def __init__(self, *args, deal=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.deal = deal
+        # فقط جمع سطرهای ارز پایه همین مشتری؛ نه علامت حساب مقابل.
+        customer_entries = (
+            Entry.objects.filter(party=deal.counterparty, currency__is_base=True)
+            .order_by().values("voucher_id").annotate(total=Sum("amount"))
+        )
+        customer_entries = customer_entries.filter(
+            **({"total__lt": 0} if deal.side == Deal.Side.SELL else {"total__gt": 0})
+        )
+        # سندهایی که واقعاً بدهی/طلب همین طرف حساب را کم می‌کنند:
+        #  - دریافت/پرداخت: تسویه فاکتور معمولاً با ارز پایه (ریال) است، نه ارز
+        #    معامله؛ محدودکردن فهرست به ارزِ معامله باعث می‌شد لیست همیشه خالی
+        #    بماند و بخش «تخصیص» عملاً دیده نشود (شکایت کارفرما).
+        #  - انتقال بین مشتریان: بخش بزرگی از اسناد کارفرما از این نوع است و
+        #    مثل دریافت/پرداخت فقط بدهی دو مشتری را جابه‌جا می‌کند.
+        self.fields["payment"].queryset = (
+            Voucher.objects.filter(
+                kind__in=[Voucher.Kind.RECEIVE, Voucher.Kind.PAY, Voucher.Kind.TRANSFER],
+                status=Voucher.Status.FINAL,
+                pk__in=customer_entries.values("voucher_id"),
+            )
+            .exclude(reverses__isnull=False)
+            .select_related("created_by")
+            .order_by("-date", "-number")
+        )
+
+    def clean_amount(self):
+        amount = self.cleaned_data["amount"]
+        if amount > self.deal.remaining_amount:
+            raise forms.ValidationError("مبلغ تخصیص از مانده فاکتور بیشتر است.")
+        return amount
+
+    def clean(self):
+        cleaned = super().clean()
+        if not Voucher.objects.filter(
+            pk=self.deal.voucher_id, status=Voucher.Status.FINAL,
+            kind=Voucher.Kind.DEAL, reverses__isnull=True,
+        ).exists():
+            raise forms.ValidationError("تخصیص فقط برای فاکتور قطعی مجاز است.")
+        invoice_base = Entry.objects.filter(
+            voucher_id=self.deal.voucher_id, party=self.deal.counterparty,
+            currency__is_base=True,
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        if (self.deal.side == Deal.Side.SELL and invoice_base <= 0) or (
+            self.deal.side == Deal.Side.BUY and invoice_base >= 0
+        ):
+            raise forms.ValidationError("این فاکتور بدهی یا طلب قابل تسویه در ارز پایه ندارد.")
+        payment, amount = cleaned.get("payment"), cleaned.get("amount")
+        if payment and InvoiceSettlement.objects.filter(
+            deal=self.deal, payment=payment,
+        ).exclude(pk=self.instance.pk).exists():
+            self.add_error("payment", "این سند قبلا به همین فاکتور تخصیص داده شده است.")
+            return cleaned
+
+        if payment and amount is not None:
+            signed_base = Entry.objects.filter(
+                voucher=payment, party=self.deal.counterparty, currency__is_base=True,
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+            allocated = InvoiceSettlement.objects.filter(
+                payment=payment, deal__counterparty=self.deal.counterparty,
+                deal__voucher__status=Voucher.Status.FINAL,
+            ).exclude(pk=self.instance.pk).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+            if amount > abs(signed_base) - allocated:
+                self.add_error("amount", "مبلغ تخصیص از مانده قابل تخصیص سند مالی بیشتر است.")
+        return cleaned
+
+
+class DeliveryForm(forms.ModelForm):
+    """تخصیص تحویل ارز معامله — کاملاً مستقل از تسویه ریالی."""
+
+    class Meta:
+        model = InvoiceDelivery
+        fields = ("payment", "quantity", "note")
+        widgets = {"payment": forms.Select(attrs=SELECT), "note": forms.Textarea(attrs=TEXTAREA)}
+
+    def __init__(self, *args, deal=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.deal = deal
+        # فقط سندهایی که ارزِ معامله را به نفع مشتری جابه‌جا می‌کنند:
+        #  - فروش: مشتری طلبکار ارز است، پس واریز/انتقالِ مثبت (بدهکار کردن مشتری)
+        #  - خرید: مشتری بدهکار ارز است، پس برداشت/انتقالِ منفی (بستانکار شدن مشتری)
+        counterparty_entries = (
+            Entry.objects.filter(party=deal.counterparty, currency=deal.currency)
+            .order_by().values("voucher_id").annotate(total=Sum("amount"))
+        )
+        counterparty_entries = counterparty_entries.filter(
+            **({"total__gt": 0} if deal.side == Deal.Side.SELL else {"total__lt": 0})
+        )
+        self.fields["payment"].queryset = (
+            Voucher.objects.filter(
+                kind__in=[Voucher.Kind.RECEIVE, Voucher.Kind.PAY, Voucher.Kind.TRANSFER],
+                status=Voucher.Status.FINAL,
+                pk__in=counterparty_entries.values("voucher_id"),
+            )
+            .exclude(reverses__isnull=False)
+            .select_related("created_by")
+            .order_by("-date", "-number")
+        )
+
+    def clean_quantity(self):
+        quantity = self.cleaned_data["quantity"]
+        if quantity > self.deal.remaining_delivery_quantity:
+            raise forms.ValidationError("مقدار تحویل از مانده تحویل فاکتور بیشتر است.")
+        return quantity
+
+    def clean(self):
+        cleaned = super().clean()
+        if not Voucher.objects.filter(
+            pk=self.deal.voucher_id, status=Voucher.Status.FINAL,
+            kind=Voucher.Kind.DEAL, reverses__isnull=True,
+        ).exists():
+            raise forms.ValidationError("تخصیص تحویل فقط برای فاکتور قطعی مجاز است.")
+        obligation = self.deal.delivery_obligation
+        if self.deal.currency.is_base or (
+            self.deal.side == Deal.Side.SELL and obligation >= 0
+        ) or (self.deal.side == Deal.Side.BUY and obligation <= 0):
+            raise forms.ValidationError("این فاکتور تعهد تحویل ارز قابل تخصیص ندارد.")
+        payment = cleaned.get("payment")
+        quantity = cleaned.get("quantity")
+        if payment and InvoiceDelivery.objects.filter(
+            deal=self.deal, payment=payment,
+        ).exclude(pk=self.instance.pk).exists():
+            self.add_error("payment", "این سند قبلا به همین فاکتور تخصیص داده شده است.")
+            return cleaned
+
+        if payment and quantity is not None:
+            signed_total = Entry.objects.filter(
+                voucher=payment, party=self.deal.counterparty, currency=self.deal.currency,
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+            allocated = InvoiceDelivery.objects.filter(
+                payment=payment, deal__counterparty=self.deal.counterparty,
+                deal__currency=self.deal.currency,
+                deal__voucher__status=Voucher.Status.FINAL,
+            ).exclude(pk=self.instance.pk).aggregate(total=Sum("quantity"))["total"] or Decimal("0")
+            if quantity > abs(signed_total) - allocated:
+                self.add_error("quantity", "مقدار تحویل از مانده قابل تخصیص سند مالی بیشتر است.")
         return cleaned
 
 
