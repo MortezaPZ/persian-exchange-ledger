@@ -1,208 +1,114 @@
-# Currency Exchange Accounting System
+# Currency Exchange Accounting
 
-A multi-currency double-entry accounting system for currency exchanges. Built with Django and PostgreSQL, with an immutable ledger and server-side RBAC.
+A multi-currency double-entry ledger for a currency exchange. Balances are computed from the lines. A posted document is corrected by a reversing document, not by editing the original.
 
-The rest of this README is in Persian.
+## Overview
 
-# سامانه حسابداری صرافی
+Staff record trades, receipts, payments, and internal transfers. Every financial event is a document. The sum of lines in each currency must be zero, or nothing is stored. Access control is enforced on the server.
 
-سامانه حسابداری چندارزی تحت وب برای صرافی — با معماری دفترداری دوطرفه،
-سطح دسترسی کاربران، نرخ لحظه‌ای ارز و گزارش‌گیری.
+## Features
 
-**پشته فنی:** Django 5.2 · PostgreSQL · Jinja/Django Templates · بدون وابستگی
-جاوااسکریپتی بیرونی
+- Double-entry documents with a signed amount: positive is debit, negative is credit
+- No stored customer balance, except inventory position, which has to be sequential for the weighted average
+- Posted documents are not edited or deleted
+- Customers, documents, and rates are not hard-deleted
+- Manual rates and a JSON rate feed
+- Excel and PDF reports
+- Google Sheet import for an opening balance, with a check mode that writes nothing
+- Server-side roles and permissions
 
----
+## Technology Stack
 
-## راه‌اندازی سریع
+- Django 5.2
+- PostgreSQL in production, SQLite for a local demo
+- Django templates
+- No third-party JavaScript
+
+## Architecture
+
+```
+config/      settings and URLs
+accounts/    users, roles, permissions, change history
+core/        currencies, parties, rates, Jalali dates, money
+ledger/      documents, lines, trades, posting, balances
+reports/     reports and Excel/PDF export
+templates/   the interface
+docs/        the user guide
+```
+
+Base-currency amounts are stored in rials. `DISPLAY_UNIT=toman` divides by 10 for display and multiplies by 10 on input. Changing the display unit does not rewrite stored rows.
+
+A sale of 8300 dirham at 51200 toman is four lines: the exchange's currency position and the customer in dirham, then the customer and the settlement account in rial. Each currency still sums to zero.
+
+`SELECT FOR UPDATE` on the weighted-average calculation is meaningful on PostgreSQL. Use PostgreSQL for a real deployment.
+
+## Installation
 
 ```bash
 pip install -r requirements.txt
 cp .env.example .env
 python manage.py migrate
-python manage.py setup_sarrafi --admin-user admin --admin-pass "یک-رمز-قوی"
+python manage.py setup_sarrafi --admin-user admin --admin-pass "choose-a-strong-password"
 python manage.py runserver
 ```
 
-سپس `http://127.0.0.1:8000` را باز کنید.
-
-### پایگاه‌داده
-
-هدف تولید **PostgreSQL** است. برای اجرای سریع دمو روی سیستمی که Postgres ندارد،
-SQLite هم کار می‌کند. انتخاب با متغیر `DB_ENGINE` در فایل `.env` است:
+Open `http://127.0.0.1:8000`.
 
 ```env
-DB_ENGINE=postgres      # یا sqlite برای توسعه
+DB_ENGINE=postgres
 DB_NAME=sarrafi
 DB_USER=postgres
 DB_PASSWORD=...
 DB_HOST=127.0.0.1
 DB_PORT=5432
+DISPLAY_UNIT=toman
 ```
 
-> نکته: تضمین اتمیک بودن ثبت سند و قفل `SELECT FOR UPDATE` روی محاسبه میانگین
-> موزون، روی PostgreSQL معنای کامل دارد. برای محیط واقعی حتماً Postgres.
+Use `DB_ENGINE=sqlite` only for a quick demo.
 
-### واحد نمایش
+`setup_sarrafi` creates permissions, roles, currencies (rial, dirham, dollar, tether), system accounts, and the admin user. Running it again is safe.
 
-همه مبالغ ارز پایه در پایگاه‌داده به **ریال** ذخیره می‌شوند. متغیر
-`DISPLAY_UNIT` تعیین می‌کند کاربر چه ببیند:
+## Usage
 
-```env
-DISPLAY_UNIT=toman      # هنگام نمایش ÷۱۰ و هنگام ورودی ×۱۰
-```
-
-تغییر این تنظیم هیچ داده‌ای را دست نمی‌زند.
-
----
-
-## اجرای آزمون‌ها
+Check a spreadsheet without writing:
 
 ```bash
-python manage.py test
+python manage.py import_sheet "file.xlsx" --mode check
+python manage.py import_sheet "file.xlsx" --mode opening --user admin
 ```
 
-۴۴ آزمون، شامل قواعد دفترداری، محاسبه مانده، میانگین موزون، ابطال، ضد تکراری،
-تاریخ شمسی، تبدیل واحد و کنترل دسترسی.
+Rate feeds return JSON. A path such as `aed.value` reads the number. If the feed is in toman and storage is in rial, set the conversion factor to 10. Array paths such as `data.0.price` are supported.
 
----
-
-## ساختار پروژه
-
-```
-config/      تنظیمات و مسیرهای اصلی
-accounts/    کاربر، نقش، مجوز، تاریخچه تغییرات
-core/        ارز، طرف حساب، نرخ ارز، ابزار تاریخ شمسی و مبالغ
-ledger/      سند، سطر سند، معامله، موتور ثبت، محاسبه مانده
-reports/     گزارش‌ها و خروجی اکسل/PDF
-templates/   قالب‌های راست‌چین فارسی
-docs/        راهنمای کاربری
-```
-
----
-
-## قواعد بنیادی سیستم
-
-این‌ها قواعدی هستند که کد حولشان ساخته شده. تغییرشان یعنی تغییر معماری:
-
-1. **هر رویداد مالی یک سند است که از چند سطر تشکیل شده.**
-2. **جمع مبالغ هر سند، در هر ارز جداگانه، باید صفر شود** — وگرنه چیزی ثبت
-   نمی‌شود. این آزمون دو بار انجام می‌شود: یک بار قبل از نوشتن و یک بار از روی
-   داده‌ای که واقعاً در پایگاه‌داده نوشته شد.
-3. **هیچ مانده‌ای هیچ‌جا ذخیره نمی‌شود** — همیشه از جمع سطرها محاسبه می‌شود.
-   تنها استثنا `InventoryPosition` است، چون میانگین موزون ذاتاً ترتیبی است.
-4. **سند قطعی ویرایش یا حذف نمی‌شود** — اصلاح فقط با سند برگشتی.
-5. **هیچ چیز پاک نمی‌شود** — نه سند، نه مشتری، نه نرخ.
-6. **کنترل دسترسی سمت سرور است** — مخفی کردن منو دسترسی نیست.
-
-### قرارداد علامت
-
-`amount` مثبت یعنی **بدهکار**، منفی یعنی **بستانکار**.
-
-یک ستون علامت‌دار به جای دو ستون، چون از نظر فنی ممکن است هر دو ستون یک سطر
-اشتباهاً پر شود و کسی متوجه نشود. در نمایش، همان دو ستون آشنای بدهکار و
-بستانکار دیده می‌شود.
-
-### ساختار یک معامله
-
-فروش ۸۳۰۰ درهم به نرخ ۵۱٬۲۰۰ تومان، چهار سطر می‌سازد:
-
-| ارز | حساب | مبلغ |
-|---|---|---|
-| درهم | موقعیت ارزی صرافی | +۸٬۳۰۰ (بدهکار) |
-| درهم | مشتری | −۸٬۳۰۰ (بستانکار) |
-| ریال | مشتری | +۴٬۲۴۹٬۶۰۰٬۰۰۰ (بدهکار) |
-| ریال | موقعیت ارزی / حساب تسویه | −۴٬۲۴۹٬۶۰۰٬۰۰۰ (بستانکار) |
-
-یعنی مشتری بابت ریال به ما بدهکار می‌شود و ما بابت درهم به او بدهکار می‌شویم —
-تا وقتی حواله را بفرستیم. حساب «موقعیت ارزی» موجودی خالص ارزی صرافی را نگه
-می‌دارد.
-
-جمع هر ارز = صفر ✓
-
----
-
-## دستورهای مدیریتی
-
-### راه‌اندازی اولیه
-
-```bash
-python manage.py setup_sarrafi --admin-user admin --admin-pass "رمز-قوی"
-```
-
-مجوزها، نقش‌ها، ارزها (ریال/درهم/دلار/تتر)، حساب‌های سیستمی و کاربر مدیر را
-می‌سازد. اجرای دوباره‌اش بی‌خطر است.
-
-### انتقال داده از گوگل‌شیت
-
-```bash
-# فقط بررسی — چیزی ثبت نمی‌شود
-python manage.py import_sheet "فایل.xlsx" --mode check
-
-# ثبت مانده افتتاحیه
-python manage.py import_sheet "فایل.xlsx" --mode opening --user admin
-```
-
-حالت `check` ضرب‌های اشتباه و تاریخ‌های ناخوانا را گزارش می‌دهد.
-
----
-
-## اتصال به سرویس نرخ ارز
-
-از داخل سامانه: **تنظیمات ← نرخ ارز ← تعریف منبع نرخ**
-
-سرویس باید خروجی JSON بدهد. مسیر رسیدن به عدد نرخ به شکل نقطه‌ای نوشته می‌شود.
-اگر پاسخ سرویس این باشد:
-
-```json
-{"aed": {"value": 51200}, "usd": {"value": 92000}}
-```
-
-مسیر درهم می‌شود `aed.value`. اگر سرویس نرخ را به تومان می‌دهد و واحد ذخیره‌سازی
-ریال است، ضریب تبدیل را ۱۰ بگذارید.
-
-آرایه هم پشتیبانی می‌شود: `data.0.price`
-
----
-
-## استقرار روی سرور
+Production:
 
 ```env
 DEBUG=False
-SECRET_KEY=<یک رشته تصادفی بلند>
+SECRET_KEY=<a long random string>
 ALLOWED_HOSTS=example.com
 CSRF_TRUSTED_ORIGINS=https://example.com
 DB_ENGINE=postgres
 ```
 
-در حالت `DEBUG=False` این‌ها خودکار فعال می‌شوند: اجبار HTTPS، کوکی امن، HSTS و
-جلوگیری از حدس نوع محتوا.
+With `DEBUG=False` the project turns on HTTPS redirect, secure cookies, HSTS, and content-type sniffing protection.
 
 ```bash
 python manage.py collectstatic
-gunicorn config.wsgi:application    # یا هر WSGI دیگر
+gunicorn config.wsgi:application
 ```
 
----
+The screen-by-screen guide is `docs/user-guide.md`.
 
-## کارهای باقی‌مانده
+## Testing
 
-- **مرحله ۴:** ربات تلگرام و واتس‌اپ برای استعلام مانده (فیلدهای `telegram_id`
-  و `whatsapp_no` و جدول پیام‌های ربات از حالا آماده‌اند)
-- انتقال سطر‌به‌سطر کل سابقه گوگل‌شیت (حالت `full` در `import_sheet`)
-- افزودن فونت وزیرمتن به `reports/fonts/` برای کیفیت بهتر PDF
-- نصب `arabic-reshaper` و `python-bidi` برای چسبیدن درست حروف فارسی در PDF:
-  ```bash
-  pip install arabic-reshaper python-bidi
-  ```
-  بدون این دو، PDF ساخته می‌شود ولی حروف فارسی به هم نمی‌چسبند.
+```bash
+python manage.py test
+```
 
----
+The suite covers posting rules, balances, weighted average, reversals, duplicate protection, Jalali dates, unit conversion, and access control.
 
-## مستندات
+## Limitations
 
-- [راهنمای کاربری](docs/راهنمای-کاربری.md) — آموزش گام‌به‌گام کار با سامانه
-- [شروع کنید](docs/شروع-کنید.txt) — راه‌اندازی نسخه دسکتاپ
+A messaging bot for balance inquiries is not built. The `telegram_id` and `whatsapp_no` fields, and the bot message table, are reserved. A full row-by-row history import (`import_sheet --mode full`) is not finished. Persian PDF shaping needs `arabic-reshaper` and `python-bidi` if you want joined letters. Without them the PDF still generates.
 
 ## License
 
