@@ -1,0 +1,70 @@
+Currency exchange accounting
+Desktop bundle
+
+
+1. How to open it
+
+Extract the whole folder from the archive first.
+Do not run the program from inside the zip. Windows would open it
+from a temporary folder.
+
+Double-click the application. A console window opens, then the
+browser opens on the login page.
+
+
+2. Login
+
+Username: admin
+
+Change the password after the first login. The password that
+shipped with this bundle is printed on the first-run page inside
+the archive. Do not keep that password.
+
+
+3. Where the data is
+
+This version does not store data next to the program. It uses a
+fixed folder on the computer. You can move or replace the program
+folder and the data stays.
+
+The exact path is on the backup page inside the application.
+
+If a previous version already had data, the program finds it and
+moves it.
+
+
+4. Backups
+
+A backup is taken each time the program starts.
+
+Once a week, use the backup page and download a backup file.
+Keep that file on a separate disk.
+
+
+5. The console window
+
+The program runs only while the console window stays open.
+Closing that window stops the program.
+
+
+6. Phone access
+
+Open the phone-access page in the program. It shows the address
+in a large font and lists the usual failures.
+
+The phone and the computer must be on the same Wi-Fi network.
+
+
+7. Windows security warning
+
+Choose More info, then Run anyway.
+
+
+8. What changed in this version
+
+- Amounts are shown and stored as rials, with an optional toman display
+- Automatic and manual backup
+- Edit and delete of a document, for the primary admin only
+- A way to clear documents and start again
+- A daily profit and loss report
+- A phone-access troubleshooting page
