@@ -1,6 +1,6 @@
 Django==5.2.17
 psycopg2-binary==2.9.10
-python-dotenv==1.1.0
+python-dotenv==1.2.2
 jdatetime==5.2.0
 openpyxl==3.1.5
 reportlab==4.4.3
