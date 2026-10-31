@@ -20,7 +20,7 @@ class BotConfigForm(forms.ModelForm):
             "is_enabled": forms.CheckboxInput(attrs={"class": "checkbox"}),
             "token": forms.TextInput(attrs={**INPUT, "dir": "ltr",
                                             "autocomplete": "off",
-                                            "placeholder": "توکن ربات"}),
+                                            "placeholder": "توکن ربات را وارد کنید"}),
             "phone_number_id": forms.TextInput(attrs={**INPUT, "dir": "ltr"}),
             "api_base": forms.TextInput(attrs={**INPUT, "dir": "ltr"}),
             "webhook_secret": forms.TextInput(attrs={**INPUT, "dir": "ltr",

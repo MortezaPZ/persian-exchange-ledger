@@ -57,7 +57,7 @@ class SenderResolutionTests(BotTestBase):
         )
 
     def test_resolves_whatsapp_with_leading_zero(self):
-        """شماره ممکن است با ۰۹۱۲ بیاید ولی با ۹۸۹۱۲ ذخیره شده باشد."""
+        """شماره ممکن است با صفر شروع شود یا با کد کشور ذخیره شده باشد."""
         self.assertEqual(
             resolve_party(BotConfig.Platform.WHATSAPP, "012345678"), self.customer
         )
