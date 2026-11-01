@@ -110,6 +110,20 @@ The suite covers posting rules, balances, weighted average, reversals, duplicate
 
 A messaging bot for balance inquiries is not built. The `telegram_id` and `whatsapp_no` fields, and the bot message table, are reserved. A full row-by-row history import (`import_sheet --mode full`) is not finished. Persian PDF shaping needs `arabic-reshaper` and `python-bidi` if you want joined letters. Without them the PDF still generates.
 
+## Folder guides
+
+- [`accounts/`](<accounts/README.md>)
+- [`bots/`](<bots/README.md>)
+- [`config/`](<config/README.md>)
+- [`core/`](<core/README.md>)
+- [`deploy/`](<deploy/README.md>)
+- [`docs/`](<docs/README.md>)
+- [`ledger/`](<ledger/README.md>)
+- [`maintenance/`](<maintenance/README.md>)
+- [`reports/`](<reports/README.md>)
+- [`static/`](<static/README.md>)
+- [`templates/`](<templates/README.md>)
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
